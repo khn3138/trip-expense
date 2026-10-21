@@ -1,5 +1,5 @@
 // 오프라인에서도 열리도록 앱 파일을 캐시한다. 앱을 수정하면 CACHE 이름의 버전을 올릴 것.
-const CACHE = 'trip-expense-v0.3.0';
+const CACHE = 'trip-expense-v0.4.0';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', e => {

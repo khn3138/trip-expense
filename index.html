@@ -76,6 +76,7 @@ input,select{width:100%;font-size:17px;padding:11px 12px;border-radius:10px;bord
 input:focus{outline:2px solid var(--accent);border-color:transparent}
 .memo{margin-top:10px}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.two>div,.two input{min-width:0}
 .btn{display:block;width:100%;padding:14px;border-radius:12px;border:0;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:700;margin-top:12px}
 .btn.ghost{background:var(--chip);color:var(--text)}
 .btn.danger{background:transparent;color:var(--bad);border:1px solid var(--bad)}
@@ -143,6 +144,15 @@ td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
 .chipsel button{border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:10px;padding:10px 0;font-size:14.5px;font-weight:600}
 .chipsel button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 </style>
+<style>
+.raterow{display:grid;grid-template-columns:1fr 110px 52px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.raterow input{padding:8px 10px;font-size:16px;text-align:right}
+.payrow{display:flex;justify-content:space-between;align-items:center;padding:8px 2px;border-bottom:1px solid var(--line);font-weight:600}
+.addpay{display:grid;grid-template-columns:1fr 1.4fr auto;gap:6px;margin-top:10px}
+.addpay select{padding:9px 8px;font-size:15px}
+.addpay .btn{margin:0;padding:9px 14px;font-size:15px}
+select:disabled{opacity:.6}
+</style>
 </head>
 <body>
 <header>
@@ -170,7 +180,7 @@ td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
       <div class="seg" id="eCur"></div>
       <div class="linkrow">
         <button type="button" class="linkbtn" id="eSplitToggle">÷ n빵 계산</button>
-        <button type="button" class="linkbtn" id="eChgToggle">+ 거스름 리엘 받음</button>
+        <button type="button" class="linkbtn" id="eChgToggle">+ 거스름 받음</button>
       </div>
       <div class="split hidden" id="eSplit">
         <div class="head"><span>÷ n빵 계산</span><button type="button" id="eSplitClose" aria-label="닫기">✕</button></div>
@@ -181,7 +191,10 @@ td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
         <div class="units" id="eSplitUnits"></div>
         <div class="res" id="eSplitRes"></div>
       </div>
-      <div class="amount small hidden" id="eChgWrap" style="margin-top:6px"><input id="eChg" inputmode="numeric" placeholder="거스름으로 받은 리엘" autocomplete="off"><span>៛</span></div>
+      <div class="hidden" id="eChgWrap" style="margin-top:6px">
+        <div class="units" id="eChgCurs" style="margin:0 0 6px"></div>
+        <div class="amount small"><input id="eChg" inputmode="decimal" placeholder="거스름으로 받은 금액" autocomplete="off"><span id="eChgSym">៛</span></div>
+      </div>
       <div class="preview" id="ePrev"></div>
       <input class="memo" id="eMemo" maxlength="60" placeholder="메모 (선택)" autocomplete="off">
       <button class="btn" id="eSave">저장</button>
@@ -204,12 +217,13 @@ td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
   <div class="cats" id="xCats"></div>
   <div class="amount"><input id="xAmt" inputmode="decimal" autocomplete="off"><span id="xSym">$</span></div>
   <div class="seg" id="xCur"></div>
-  <div id="xChgWrap"><label>거스름으로 받은 리엘</label><div class="amount small"><input id="xChg" inputmode="numeric" autocomplete="off"><span>៛</span></div></div>
-  <input class="memo" id="xMemo" maxlength="60" placeholder="메모 (선택)" autocomplete="off">
-  <div class="two">
-    <div><label>적용 환율 (₩/$)</label><input id="xRKrw" inputmode="decimal"></div>
-    <div><label>적용 환율 (៛/$)</label><input id="xRKhr" inputmode="decimal"></div>
+  <div id="xChgWrap">
+    <label>거스름으로 받은 금액</label>
+    <div class="units" id="xChgCurs" style="margin:0 0 6px"></div>
+    <div class="amount small"><input id="xChg" inputmode="decimal" autocomplete="off"><span id="xChgSym">៛</span></div>
   </div>
+  <input class="memo" id="xMemo" maxlength="60" placeholder="메모 (선택)" autocomplete="off">
+  <div class="two" id="xRates"></div>
   <div class="preview" id="xPrev"></div>
   <button class="btn" id="xSave">저장</button>
   <div class="btns">
@@ -221,21 +235,9 @@ td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
 <!-- 환율 -->
 <div class="sheet" id="rateSheet">
   <h3>환율</h3>
-  <div class="toggle">
-    <div><b>환율 자동 조회</b><div class="sub" id="rAuto"></div></div>
-    <label class="switch" style="margin:0"><input type="checkbox" id="rAutoOn"><span></span></label>
-  </div>
-  <div class="sub" id="rModeDesc"></div>
-  <div class="toggle">
-    <div><b>📌 리엘 환율 고정</b><div class="sub">가게처럼 1$ = 4,000៛로 계산</div></div>
-    <label class="switch" style="margin:0"><input type="checkbox" id="rFixKhr"><span></span></label>
-  </div>
-  <div class="two">
-    <div><label>내 환율 원/달러 (₩)</label><input id="rKrw" inputmode="decimal" placeholder="1330"></div>
-    <div id="rKhrWrap"><label>내 환율 리엘/달러 (៛)</label><input id="rKhr" inputmode="decimal" placeholder="4000"></div>
-    <div id="rFixWrap"><label>고정 리엘/달러 (៛)</label><input id="rFixRate" inputmode="decimal" placeholder="4000"></div>
-  </div>
-  <div class="sub" style="margin-top:6px">환율은 새로 저장하는 기록에만 적용돼요. 이미 저장한 기록의 환율은 바뀌지 않아요 (기록을 눌러서 수정 가능).</div>
+  <div class="sub" id="rAuto"></div>
+  <div id="rList" style="margin-top:6px"></div>
+  <div class="sub" style="margin-top:8px">📌 고정을 켜면 그 값으로만 계산해요 (미리 환전한 환율, 가게 환율 1$=4,000៛ 등). 끄면 매일 자동 조회한 환율을 써요.<br>환율은 새로 저장하는 기록에만 적용돼요. 이미 저장한 기록은 눌러서 수정할 수 있어요.</div>
   <button class="btn" id="rSave">저장</button>
   <div class="btns">
     <button class="btn ghost" id="rRefresh">자동 환율 새로 받기</button>
@@ -288,25 +290,40 @@ td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v0.3.0';
-const KEY = 'tripExpense.v2', OLD_KEY = 'tripExpense.v1';
+const APP_VERSION = 'v0.4.0';
+const APP_NAME = '출장 경비';
+const KEY = 'tripExpense.v3', OLD_KEYS = ['tripExpense.v2', 'tripExpense.v1'];
 const RATE_API = 'https://open.er-api.com/v6/latest/USD';
-const CURS = { USD: { name: '달러', sym: '$' }, KHR: { name: '리엘', sym: '៛' }, KRW: { name: '원', sym: '₩' } };
-// 결제 방식 = 결제수단 + 통화 (한 번 탭으로 둘 다 선택)
-const PAYS = {
-  cash: { label: '현금 $', method: '현금', cur: 'USD' },
-  riel: { label: '현금 ៛', method: '현금', cur: 'KHR' },
-  card: { label: '카드 $', method: '카드', cur: 'USD' },
-  bank: { label: '입금 ₩', method: '입금', cur: 'KRW' }
+
+// 통화: sym 기호, post 기호를 뒤에 붙임, dec 소수 자리, units n빵 올림 단위, usd 1달러당 대략 환율(자동 조회 전 임시값)
+const CURS = {
+  USD: { name: '달러', sym: '$', dec: 2, units: [0.01, 0.5, 1], usd: 1, icon: '💵' },
+  KRW: { name: '원', sym: '₩', dec: 0, units: [1, 100, 1000], usd: 1330, icon: '💵' },
+  KHR: { name: '리엘', sym: '៛', post: true, dec: 0, units: [100, 500, 1000], usd: 4000, icon: '🪙' },
+  JPY: { name: '엔', sym: '¥', dec: 0, units: [1, 10, 100], usd: 150, icon: '💴' },
+  VND: { name: '동', sym: '₫', post: true, dec: 0, units: [1000, 5000, 10000], usd: 25000, icon: '💵' },
+  THB: { name: '바트', sym: '฿', dec: 0, units: [1, 5, 10], usd: 36, icon: '💵' },
+  PHP: { name: '페소', sym: '₱', dec: 0, units: [1, 5, 10], usd: 57, icon: '💵' },
+  CNY: { name: '위안', sym: '元', post: true, dec: 2, units: [0.1, 1, 10], usd: 7.2, icon: '💵' },
+  TWD: { name: '대만달러', sym: 'NT$', dec: 0, units: [1, 10, 100], usd: 32, icon: '💵' },
+  SGD: { name: '싱가포르달러', sym: 'S$', dec: 2, units: [0.01, 0.5, 1], usd: 1.35, icon: '💵' },
+  MYR: { name: '링깃', sym: 'RM', dec: 2, units: [0.1, 0.5, 1], usd: 4.7, icon: '💵' },
+  IDR: { name: '루피아', sym: 'Rp', dec: 0, units: [1000, 5000, 10000], usd: 16000, icon: '💵' },
+  EUR: { name: '유로', sym: '€', dec: 2, units: [0.01, 0.5, 1], usd: 0.92, icon: '💶' }
 };
-const payKeyOf = e => Object.keys(PAYS).find(k => PAYS[k].cur === e.cur && PAYS[k].method === e.method)
-  || (e.cur === 'KHR' ? 'riel' : e.cur === 'KRW' ? 'bank' : 'cash');
-// 지갑: 지출 결제 방식(PAYS)과 연결. 입금(₩)은 한국 계좌라 지갑 추적 안 함
-const WALLETS = {
-  cash: { label: '현금 $', icon: '💵', cur: 'USD' },
-  riel: { label: '현금 ៛', icon: '🪙', cur: 'KHR' },
-  card: { label: '카드 $', icon: '💳', cur: 'USD' }
+const METHODS = { 현금: { code: 'cash', icon: '💵' }, 카드: { code: 'card', icon: '💳' }, 입금: { code: 'bank', icon: '🏦' } };
+// 나라 프리셋: 결제 버튼(결제수단, 통화), 고정 환율(일비 통화 1단위당)
+const PRESETS = {
+  kh: { name: '캄보디아', base: 'USD', pays: [['현금', 'USD'], ['현금', 'KHR'], ['카드', 'USD'], ['입금', 'KRW']], fixed: { KHR: 4000 } },
+  jp: { name: '일본', base: 'USD', pays: [['현금', 'JPY'], ['카드', 'JPY'], ['입금', 'KRW']], fixed: {} },
+  vn: { name: '베트남', base: 'USD', pays: [['현금', 'VND'], ['현금', 'USD'], ['카드', 'VND'], ['입금', 'KRW']], fixed: {} },
+  th: { name: '태국', base: 'USD', pays: [['현금', 'THB'], ['카드', 'THB'], ['입금', 'KRW']], fixed: {} }
 };
+// v0.3.0까지의 결제·지갑 키를 그대로 유지 (기존 지갑 기록 호환)
+const LEGACY_PAY = { '현금USD': 'cash', '현금KHR': 'riel', '카드USD': 'card', '입금KRW': 'bank' };
+const payIdFor = (method, cur) => LEGACY_PAY[method + cur] || `${METHODS[method]?.code || 'x'}-${cur}`;
+const makePay = ([method, cur]) => ({ id: payIdFor(method, cur), method, cur });
+
 const DEFAULT_CATS = [
   { id: 'meal', icon: '🍚', name: '식사' }, { id: 'drink', icon: '🍺', name: '술' },
   { id: 'mart', icon: '🛒', name: '마트' }, { id: 'cafe', icon: '☕', name: '카페' },
@@ -314,16 +331,20 @@ const DEFAULT_CATS = [
   { id: 'living', icon: '🧴', name: '생활용품' }, { id: 'tip', icon: '🙏', name: '팁' },
   { id: 'etc', icon: '📦', name: '기타' }
 ];
-const CAT_VER = 2; // 기본 카테고리를 추가하면 올리고 load()에서 기존 사용자에게도 추가
+const CAT_VER = 2; // 기본 카테고리를 추가하면 올리고 upgradeCats()에서 기존 사용자에게도 추가
 
 // ---------- 숫자/날짜 ----------
 const $ = id => document.getElementById(id);
 const num = v => { const n = parseFloat(String(v ?? '').replace(/,/g, '')); return isFinite(n) ? n : 0; };
-const usd = x => (x < 0 ? '-$' : '$') + Math.abs(x).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const krw = x => (x < 0 ? '-₩' : '₩') + Math.round(Math.abs(x)).toLocaleString('ko-KR');
-const khr = x => Math.round(x).toLocaleString('ko-KR') + '៛';
-const fmtCur = (amt, cur) => cur === 'USD' ? usd(amt) : cur === 'KRW' ? krw(amt) : khr(amt);
-const fmtRate = x => (+x).toLocaleString('ko-KR', { maximumFractionDigits: 2 });
+function fmtCur(x, cur) {
+  const c = CURS[cur] || { sym: cur + ' ', dec: 2 };
+  const s = Math.abs(x).toLocaleString('en-US', { minimumFractionDigits: c.dec, maximumFractionDigits: c.dec });
+  return (x < -1e-9 ? '-' : '') + (c.post ? s + c.sym : c.sym + s);
+}
+const sym = cur => CURS[cur]?.sym || cur;
+const unit1 = cur => CURS[cur]?.post ? `1${sym(cur)}` : `${sym(cur)}1`;   // "$1", "1៛"
+const fmtRate = x => (+x).toLocaleString('en-US', { maximumFractionDigits: x >= 100 ? 2 : x >= 1 ? 2 : 4 }); // ₩8.39, ¥158.2, $0.0067
+const fmtRateCur = (x, cur) => CURS[cur]?.post ? `${fmtRate(x)}${sym(cur)}` : `${sym(cur)}${fmtRate(x)}`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const pad = n => String(n).padStart(2, '0');
 const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -334,25 +355,30 @@ const minD = (a, b) => (a < b ? a : b), maxD = (a, b) => (a > b ? a : b);
 const WEEK = ['일', '월', '화', '수', '목', '금', '토'];
 const md = s => { const d = parse(s); return `${d.getMonth() + 1}/${d.getDate()} (${WEEK[d.getDay()]})`; };
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const uniq = a => [...new Set(a)];
 
 // ---------- 저장소 ----------
 const defaults = () => ({
-  version: 2,
-  settings: { title: '', start: '', end: '', dailyUsd: 45, defaultPayRate: 1330, payRates: {},
-    autoRate: true, fixKhr: true, fixKhrRate: 4000, manualKrw: null, manualKhr: null, fetched: null, categories: DEFAULT_CATS.map(c => ({ ...c })) }, // catVer는 upgradeCats()에서만 설정
+  version: 3,
+  settings: {
+    title: '', start: '', end: '', preset: 'kh',
+    base: 'USD', daily: 45,                 // 일비 통화와 하루 일비
+    defaultPayRate: 1330, payRates: {},     // 회사 지급 환율 (원 / 일비 통화 1단위)
+    pays: PRESETS.kh.pays.map(makePay),     // 결제 버튼 (결제수단 × 통화)
+    rateCfg: { KHR: { fixed: true, value: 4000 } }, // 통화별 고정 환율 (일비 통화 1단위당)
+    fetched: null,                          // { date, rates: { 통화: 1달러당 } }
+    categories: DEFAULT_CATS.map(c => ({ ...c }))   // catVer는 upgradeCats()에서만 설정
+  },
   expenses: [],
-  moves: [] // 지갑 이동: { id, createdAt, date, type: 'in'|'xfer'|'adjust', from, amount, to, amount2, memo }
+  moves: []
 });
 
-// v1(통화별 칸 혼합 입력) → v2(한 건 = 한 통화 + 환율 스냅샷)
-function migrate(d) {
-  if (!d || !d.settings) return null;
-  const out = defaults();
-  if (d.version === 2) return { ...out, ...d, settings: { ...out.settings, ...d.settings } };
-  const s = d.settings;
-  Object.assign(out.settings, { title: s.title || '', start: s.start || '', end: s.end || '',
-    dailyUsd: num(s.dailyUsd) || 45, defaultPayRate: num(s.defaultRate) || 1330,
-    payRates: { ...(s.monthRates || {}) }, manualKhr: num(s.khrPerUsd) || null });
+// v1(통화별 칸 혼합 입력) → v2(한 건 = 한 통화)
+function v1to2(d) {
+  const s = d.settings, out = { version: 2, settings: {
+    title: s.title || '', start: s.start || '', end: s.end || '', dailyUsd: num(s.dailyUsd) || 45,
+    defaultPayRate: num(s.defaultRate) || 1330, payRates: { ...(s.monthRates || {}) },
+    autoRate: true, fixKhr: false, manualKhr: num(s.khrPerUsd) || null }, expenses: [], moves: [] };
   for (const e of d.expenses || []) {
     const rKrw = num((s.monthRates || {})[e.date.slice(0, 7)]) || num(s.defaultRate) || 1330;
     const rKhr = num(s.khrPerUsd) || 4000;
@@ -364,12 +390,40 @@ function migrate(d) {
   }
   return out;
 }
-
+// v2(달러·리엘·원 고정) → v3(통화 설정): 캄보디아 프리셋으로 변환, 기록은 환율 스냅샷 r과 거스름 chg로
+function v2to3(d) {
+  const s = d.settings, out = defaults(), o = out.settings;
+  Object.assign(o, { title: s.title || '', start: s.start || '', end: s.end || '', preset: 'kh', base: 'USD',
+    daily: num(s.dailyUsd) || 45, defaultPayRate: num(s.defaultPayRate) || 1330, payRates: { ...(s.payRates || {}) },
+    categories: s.categories || o.categories, catVer: s.catVer, lastSplitN: s.lastSplitN });
+  // 리엘: 고정(기본) → 고정, 자동 OFF + 내 환율 → 고정, 그 외 자동
+  o.rateCfg = {};
+  if (s.fixKhr !== false) o.rateCfg.KHR = { fixed: true, value: num(s.fixKhrRate) || 4000 };
+  else if (s.autoRate === false && num(s.manualKhr)) o.rateCfg.KHR = { fixed: true, value: num(s.manualKhr) };
+  if (s.autoRate === false && num(s.manualKrw)) o.rateCfg.KRW = { fixed: true, value: num(s.manualKrw) };
+  if (s.fetched) o.fetched = { date: s.fetched.date, rates: { USD: 1, KRW: num(s.fetched.krw), KHR: num(s.fetched.khr) } };
+  out.expenses = (d.expenses || []).map(e => {
+    const { rKrw, rKhr, khrChange, ...rest } = e;
+    const n = { ...rest, method: e.method || (e.cur === 'KRW' ? '입금' : '현금'),
+      r: { USD: 1, KRW: num(rKrw) || 1330, KHR: num(rKhr) || 4000 } };
+    if (num(khrChange)) n.chg = { cur: 'KHR', amount: num(khrChange) };
+    return n;
+  });
+  out.moves = d.moves || [];
+  return out;
+}
+function migrate(d) {
+  if (!d || !d.settings) return null;
+  if (!d.version) d = v1to2(d);
+  if (d.version === 2) d = v2to3(d);
+  const out = defaults();
+  return { ...out, ...d, settings: { ...out.settings, ...d.settings } };
+}
 function load() {
-  for (const k of [KEY, OLD_KEY]) {
+  for (const k of [KEY, ...OLD_KEYS]) {
     try { const d = migrate(JSON.parse(localStorage.getItem(k))); if (d) return upgradeCats(d); } catch (e) {}
   }
-  return defaults();
+  return upgradeCats(defaults());
 }
 // 새 기본 카테고리(v0.2.0: 팁)를 기존 사용자 목록에 한 번만 추가 (사용자가 지운 건 다시 안 넣음)
 function upgradeCats(d) {
@@ -387,37 +441,61 @@ function save() {
   try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('저장 실패: 브라우저 저장소를 확인하세요'); }
 }
 
+// ---------- 결제 버튼 / 지갑 ----------
+const BASE = () => S.settings.base;
+const fb = x => fmtCur(x, BASE());           // 일비 통화로 표시
+const krw = x => fmtCur(x, 'KRW');
+const pays = () => S.settings.pays;
+const payKeyOf = e => payIdFor(e.method || '현금', e.cur);
+const payLabel = p => `${p.method} ${sym(p.cur)}`;
+const payOf = id => pays().find(p => p.id === id);
+// 지갑 = 현금·카드 결제 버튼 (입금은 한국 계좌라 지갑 추적 안 함)
+const wallets = () => pays().filter(p => p.method !== '입금');
+const walletIcon = p => p.method === '카드' ? '💳' : (CURS[p.cur]?.icon || '💵');
+const cashCurs = () => pays().filter(p => p.method === '현금').map(p => p.cur);
+// 거스름: 현금으로 내고 '다른 통화' 현금으로 받는 경우만 (같은 통화면 실제 쓴 금액만 적으면 됨)
+const changeCursFor = p => p && p.method === '현금' ? cashCurs().filter(c => c !== p.cur) : [];
+// 환율 표시·입력 대상: 결제 통화 + 원화 (일비 통화 제외)
+const rateCurs = () => uniq([...pays().map(p => p.cur), 'KRW']).filter(c => c !== BASE());
+
 // ---------- 환율 ----------
-// 자동 조회 ON: 오늘 시장 환율 (못 받았으면 직접 입력값/기본값)
-// 자동 조회 OFF: 직접 입력한 환율 (미리 환전한 환율 등)만 사용
+// 모든 환율은 '일비 통화 1단위당 그 통화 금액'. 고정이면 그 값, 아니면 자동 조회(1달러당)에서 계산
+const perUsd = c => num(S.settings.fetched?.rates?.[c]) || CURS[c]?.usd || 1;
+const autoRate = c => perUsd(c) / perUsd(BASE());
 function curRates() {
-  const s = S.settings, f = s.autoRate ? s.fetched : null;
-  return {
-    krw: num(f?.krw) || num(s.manualKrw) || num(s.defaultPayRate) || 1330,
-    // 리엘 고정이 켜져 있으면 자동 조회와 상관없이 고정값 (가게 관행 1$ = 4,000៛)
-    khr: s.fixKhr ? (num(s.fixKhrRate) || 4000) : (num(f?.khr) || num(s.manualKhr) || 4000)
-  };
+  const r = {};
+  for (const c of Object.keys(CURS)) {
+    const cfg = S.settings.rateCfg[c];
+    r[c] = c === BASE() ? 1 : (cfg?.fixed && num(cfg.value)) ? num(cfg.value) : autoRate(c);
+  }
+  return r;
 }
+// 기록에 저장할 환율 스냅샷 (결제 통화들 + 원화)
+const snapRates = () => { const r = curRates(), o = {}; for (const c of uniq([...pays().map(p => p.cur), 'KRW', BASE()])) o[c] = r[c]; return o; };
 const payRate = ym => num(S.settings.payRates[ym]) || num(S.settings.defaultPayRate) || 1330;
 
 async function fetchRates(force) {
   const f = S.settings.fetched;
-  if (!force && (!S.settings.autoRate || (f && f.date === today()))) return;
+  if (!force && f && f.date === today()) return;
   try {
     const r = await fetch(RATE_API, { cache: 'no-store' });
     const j = await r.json();
-    if (j.result !== 'success' || !j.rates?.KRW || !j.rates?.KHR) throw 0;
-    S.settings.fetched = { krw: j.rates.KRW, khr: j.rates.KHR, date: today(), updated: j.time_last_update_utc };
+    if (j.result !== 'success' || !j.rates?.KRW) throw 0;
+    const rates = {};
+    for (const c of Object.keys(CURS)) if (j.rates[c]) rates[c] = j.rates[c];
+    S.settings.fetched = { date: today(), updated: j.time_last_update_utc, rates };
     save(); renderAll();
     if (force) toast('환율을 새로 받았어요');
   } catch (e) { if (force) toast('환율을 가져오지 못했어요 (인터넷 확인)'); }
 }
 
+// 기록 → 일비 통화 금액(b)과 원화(krw). 거스름(chg)은 받은 통화로 환산해서 뺌
 function conv(e) {
-  const a = num(e.amount), rK = num(e.rKrw) || 1330, rH = num(e.rKhr) || 4000;
-  // 현금 $로 내고 거스름을 리엘로 받으면(khrChange) 그만큼 빼서 실제 사용액 계산
-  const u = e.cur === 'USD' ? a - num(e.khrChange) / rH : e.cur === 'KHR' ? a / rH : a / rK;
-  return { usd: u, krw: e.cur === 'KRW' ? a : u * rK };
+  const r = e.r || {}, now = curRates();
+  const rate = c => c === BASE() ? 1 : (num(r[c]) || now[c] || 1);
+  let b = num(e.amount) / rate(e.cur);
+  if (e.chg && num(e.chg.amount)) b -= num(e.chg.amount) / rate(e.chg.cur);
+  return { b, krw: e.cur === 'KRW' && !e.chg ? num(e.amount) : b * rate('KRW') };
 }
 
 const catOf = id => S.settings.categories.find(c => c.id === id) || { id, icon: '📦', name: '기타' };
@@ -427,7 +505,7 @@ const catOf = id => S.settings.categories.find(c => c.id === id) || { id, icon: 
 function months() {
   const { start, end } = S.settings;
   if (!start || !end || end < start) return [];
-  const out = [], t = today(), daily = num(S.settings.dailyUsd);
+  const out = [], t = today(), daily = num(S.settings.daily);
   let y = parse(start).getFullYear(), m = parse(start).getMonth();
   while (true) {
     const first = ymd(new Date(y, m, 1));
@@ -436,8 +514,8 @@ function months() {
     const from = maxD(start, first), to = minD(end, last);
     const days = diffDays(from, to) + 1, ym = first.slice(0, 7), rate = payRate(ym);
     const elapsed = t < from ? 0 : diffDays(from, minD(t, to)) + 1;
-    out.push({ ym, from, to, days, rate, usdAmt: days * daily, krwAmt: days * daily * rate,
-      paid: t >= from, elapsed, accUsd: elapsed * daily, accKrw: elapsed * daily * rate });
+    out.push({ ym, from, to, days, rate, amt: days * daily, krwAmt: days * daily * rate,
+      paid: t >= from, elapsed, acc: elapsed * daily, accKrw: elapsed * daily * rate });
     if (++m > 11) { m = 0; y++; }
   }
   return out;
@@ -445,64 +523,75 @@ function months() {
 
 function stats() {
   const ms = months(), sum = (arr, f) => arr.reduce((a, x) => a + f(x), 0);
-  let sUsd = 0, sKrw = 0;
-  const byPay = { cash: 0, riel: 0, card: 0, bank: 0 }, byPayUsd = { cash: 0, riel: 0, card: 0, bank: 0 }, byCat = {};
+  let sB = 0, sKrw = 0;
+  const byPay = {}, byCat = {};
+  const row = (method, cur) => byPay[payIdFor(method, cur)] ||= { method, cur, amt: 0, b: 0 };
   for (const e of S.expenses) {
-    const c = conv(e), k = payKeyOf(e); sUsd += c.usd; sKrw += c.krw;
-    byPay[k] += num(e.amount); byPayUsd[k] += c.usd;
-    if (num(e.khrChange)) { // 거스름 리엘은 리엘 사용에서 빼고, 현금 $ 사용은 낸 금액 그대로
-      const ch = num(e.khrChange) / (num(e.rKhr) || 4000);
-      byPay.riel -= num(e.khrChange); byPayUsd.riel -= ch; byPayUsd[k] += ch;
+    const c = conv(e); sB += c.b; sKrw += c.krw;
+    const p = row(e.method || '현금', e.cur);
+    p.amt += num(e.amount); p.b += c.b;
+    if (e.chg && num(e.chg.amount)) { // 거스름은 받은 통화 현금 사용에서 빼고, 낸 쪽은 낸 금액 그대로
+      const cb = num(e.chg.amount) / (num(e.r?.[e.chg.cur]) || curRates()[e.chg.cur] || 1);
+      const q = row('현금', e.chg.cur); q.amt -= num(e.chg.amount); q.b -= cb; p.b += cb;
     }
-    byCat[e.cat] = (byCat[e.cat] || 0) + c.usd;
+    byCat[e.cat] = (byCat[e.cat] || 0) + c.b;
   }
   const paid = ms.filter(x => x.paid), elapsed = sum(ms, x => x.elapsed);
   return { ms, start: S.settings.start, end: S.settings.end, t: today(),
-    totalDays: sum(ms, x => x.days), elapsed, sUsd, sKrw, byPay, byPayUsd, byCat,
-    accUsd: sum(ms, x => x.accUsd), accKrw: sum(ms, x => x.accKrw),
-    paidUsd: sum(paid, x => x.usdAmt), paidKrw: sum(paid, x => x.krwAmt), paidMonths: paid,
-    totUsd: sum(ms, x => x.usdAmt), totKrw: sum(ms, x => x.krwAmt),
-    avgUsd: elapsed ? sUsd / elapsed : 0, avgKrw: elapsed ? sKrw / elapsed : 0 };
+    totalDays: sum(ms, x => x.days), elapsed, sB, sKrw, byPay, byCat,
+    acc: sum(ms, x => x.acc), accKrw: sum(ms, x => x.accKrw),
+    paidB: sum(paid, x => x.amt), paidKrw: sum(paid, x => x.krwAmt), paidMonths: paid,
+    tot: sum(ms, x => x.amt), totKrw: sum(ms, x => x.krwAmt),
+    avg: elapsed ? sB / elapsed : 0, avgKrw: elapsed ? sKrw / elapsed : 0 };
 }
-const dayTotal = d => S.expenses.filter(e => e.date === d).reduce((a, e) => { const c = conv(e); a.usd += c.usd; a.krw += c.krw; return a; }, { usd: 0, krw: 0 });
+const dayTotal = d => S.expenses.filter(e => e.date === d).reduce((a, e) => { const c = conv(e); a.b += c.b; a.krw += c.krw; return a; }, { b: 0, krw: 0 });
 
 // ---------- 공통 UI 조각 ----------
 const catButtons = sel => S.settings.categories.map(c =>
   `<button type="button" class="cat ${c.id === sel ? 'on' : ''}" data-cat="${esc(c.id)}"><span class="ic">${esc(c.icon)}</span>${esc(c.name)}</button>`).join('');
-const payButtons = sel => Object.entries(PAYS).map(([k, v]) =>
-  `<button type="button" class="${k === sel ? 'on' : ''}" data-pay="${k}">${v.label}</button>`).join('');
+// extra: 수정 중인 기록의 결제 방식이 지금 버튼 목록에 없을 때 같이 보여줌
+function payButtons(sel, extra) {
+  const list = extra && !payOf(extra.id) ? [...pays(), extra] : pays();
+  return list.map(p => `<button type="button" class="${p.id === sel ? 'on' : ''}" data-pay="${p.id}">${payLabel(p)}</button>`).join('');
+}
+const segCols = (el, n) => { el.style.gridTemplateColumns = `repeat(${Math.min(Math.max(n, 1), 4)},1fr)`; };
+const curChips = (list, sel) => list.map(c => `<button type="button" class="${c === sel ? 'on' : ''}" data-cc="${c}">${sym(c)} ${CURS[c]?.name || c}</button>`).join('');
 function itemHtml(e) {
-  const c = conv(e), cat = catOf(e.cat), p = PAYS[payKeyOf(e)];
-  const pay = p.label.split(' ')[0] + (e.cur !== 'USD' || num(e.khrChange) ? ' ' + fmtCur(num(e.amount), e.cur) : '')
-    + (num(e.khrChange) ? ` (거스름 ${khr(num(e.khrChange))})` : '')
+  const c = conv(e), cat = catOf(e.cat);
+  const pay = (e.method || '현금') + (e.cur !== BASE() || e.chg ? ' ' + fmtCur(num(e.amount), e.cur) : '')
+    + (e.chg && num(e.chg.amount) ? ` (거스름 ${fmtCur(num(e.chg.amount), e.chg.cur)})` : '')
     + (e.split ? ` (n빵 ${fmtCur(num(e.split.total), e.cur)}÷${e.split.n})` : '');
   const sub = [pay, e.memo].filter(Boolean).join(' · ');
   return `<div class="item" data-id="${esc(e.id)}"><span class="ic">${esc(cat.icon)}</span>
     <div class="mid"><div class="name">${esc(cat.name)}</div>${sub ? `<div class="m">${esc(sub)}</div>` : ''}</div>
-    <div class="amt"><b>${usd(c.usd)}</b><div class="sub">${krw(c.krw)}</div></div></div>`;
+    <div class="amt"><b>${fb(c.b)}</b>${BASE() !== 'KRW' ? `<div class="sub">${krw(c.krw)}</div>` : ''}</div></div>`;
 }
-const leftTag = (left) => `<span class="${left >= 0 ? 'good' : 'bad'}">${left >= 0 ? '+' : ''}${usd(left)}</span>`;
+const leftTag = left => `<span class="${left >= 0 ? 'good' : 'bad'}">${left >= 0 ? '+' : ''}${fb(left)}</span>`;
+const withKrw = (b, k) => BASE() !== 'KRW' ? `${fb(b)} · ${krw(k)}` : fb(b);
 
 // ---------- 헤더 ----------
 function renderHeader() {
-  $('title').textContent = S.settings.title || '출장 경비';
+  $('title').textContent = S.settings.title || APP_NAME;
   const r = curRates();
-  $('rateChip').innerHTML = `<b>${S.settings.autoRate ? '자동' : '고정'}</b> $1 = ₩${fmtRate(r.krw)} · ${fmtRate(Math.round(r.khr))}៛${S.settings.fixKhr ? '📌' : ''}`;
+  $('rateChip').innerHTML = `<b>${unit1(BASE())}</b> = ` + rateCurs().map(c =>
+    fmtRateCur(r[c] >= 100 ? Math.round(r[c]) : r[c], c) + (S.settings.rateCfg[c]?.fixed ? '📌' : '')).join(' · ');
 }
 
 // ---------- 입력 화면 ----------
-let eDate = today(), eDateAuto = true, eCat = null, ePay = 'cash'; // eDateAuto: 날짜를 안 바꿨으면 항상 오늘
+let eDate = today(), eDateAuto = true, eCat = null, ePay = null; // eDateAuto: 날짜를 안 바꿨으면 항상 오늘
+const curPay = () => payOf(ePay) || pays()[0];
 function renderEntry() {
   const t = today();
   if (eDateAuto) eDate = t;
+  if (!payOf(ePay)) ePay = pays()[0]?.id;
   // 상단 상태
-  const st = stats(), daily = num(S.settings.dailyUsd);
+  const st = stats(), daily = num(S.settings.daily);
   if (!st.ms.length) {
     $('todayStatus').innerHTML = `<span class="sub">설정 탭에서 출장 기간을 먼저 입력하세요.</span>`;
   } else {
-    const tt = dayTotal(t), acc = st.accUsd - st.sUsd;
-    $('todayStatus').innerHTML = `<span>오늘 <b>${usd(tt.usd)}</b> · 일비 대비 ${leftTag(daily - tt.usd)}</span>
-      <span>누적 ${acc >= 0 ? `<b class="good">${usd(acc)} 남음</b>` : `<b class="bad">${usd(-acc)} 초과</b>`}</span>`;
+    const tt = dayTotal(t), acc = st.acc - st.sB;
+    $('todayStatus').innerHTML = `<span>오늘 <b>${fb(tt.b)}</b> · 일비 대비 ${leftTag(daily - tt.b)}</span>
+      <span>누적 ${acc >= 0 ? `<b class="good">${fb(acc)} 남음</b>` : `<b class="bad">${fb(-acc)} 초과</b>`}</span>`;
   }
   // 날짜
   const diff = diffDays(eDate, t);
@@ -510,45 +599,56 @@ function renderEntry() {
   $('eDateLabel').textContent = (diff === 0 ? '오늘 ' : diff === 1 ? '어제 ' : '') + md(eDate) + ' ▾';
   $('eDateLabel').classList.toggle('past', eDate !== t);
   $('eCats').innerHTML = catButtons(eCat);
-  $('eCur').innerHTML = payButtons(ePay);
-  $('eSym').textContent = CURS[PAYS[ePay].cur].sym;
+  $('eCur').innerHTML = payButtons(ePay); segCols($('eCur'), pays().length);
+  $('eSym').textContent = sym(curPay().cur);
   updateChgUi(); updateSplitUi();
   updateEntryPreview();
   // 지갑 잔액 한 줄 (지갑을 쓰기 시작한 경우만)
   const b = balances();
   $('walLine').innerHTML = S.moves.length
-    ? Object.entries(WALLETS).map(([k, w]) => `<button type="button" data-go="wallet">${w.icon} ${fmtCur(b[k], w.cur)}</button>`).join('')
+    ? wallets().map(w => `<button type="button" data-go="wallet">${walletIcon(w)} ${fmtCur(b[w.id], w.cur)}</button>`).join('')
     : '';
   // 선택한 날짜 기록
   const items = S.expenses.filter(e => e.date === eDate).sort((a, b) => b.createdAt - a.createdAt);
   const dt = dayTotal(eDate);
   $('eDayTitle').textContent = md(eDate) + ' 기록';
-  $('eDayTotal').innerHTML = items.length ? `${usd(dt.usd)} · ${krw(dt.krw)} (${leftTag(daily - dt.usd)})` : '';
+  $('eDayTotal').innerHTML = items.length ? `${withKrw(dt.b, dt.krw)} (${leftTag(daily - dt.b)})` : '';
   $('eDayList').innerHTML = items.length ? `<div class="items">${items.map(itemHtml).join('')}</div>` : `<div class="empty">아직 기록이 없어요</div>`;
 }
+const entryChg = () => eChgOpen && changeCursFor(curPay()).length && num($('eChg').value) ? { cur: eChgCur, amount: num($('eChg').value) } : null;
+// 미리보기: 결제 통화가 아닌 쪽(일비 통화, 원화)으로 환산해서 보여줌
+function previewText(amount, cur, chg, r) {
+  const c = conv({ amount, cur, chg, r }), parts = [];
+  if (cur !== BASE() || chg) parts.push(fb(c.b) + (chg ? ' 사용' : ''));
+  if (cur !== 'KRW' && BASE() !== 'KRW') parts.push(krw(c.krw));
+  return '= ' + (parts.join(' · ') || fb(c.b));
+}
 function updateEntryPreview() {
-  const a = num($('eAmt').value), r = curRates(), cur = PAYS[ePay].cur;
-  const c = conv({ amount: a, cur, rKrw: r.krw, rKhr: r.khr, khrChange: ePay === 'cash' ? num($('eChg').value) : 0 });
-  $('ePrev').textContent = cur === 'USD' ? (ePay === 'cash' && num($('eChg').value) ? `= ${usd(c.usd)} 사용 · ${krw(c.krw)}` : `= ${krw(c.krw)}`) : cur === 'KHR' ? `= ${usd(c.usd)} · ${krw(c.krw)}` : `= ${usd(c.usd)}`;
+  $('ePrev').textContent = previewText(num($('eAmt').value), curPay().cur, entryChg(), snapRates());
 }
 $('eAmt').addEventListener('input', updateEntryPreview);
 $('eChg').addEventListener('input', updateEntryPreview);
-// 거스름 리엘 입력칸: 현금 $일 때만, 눌러야 펼침
-let eChgOpen = false;
+// 거스름 입력칸: 현금 결제이고 다른 통화 현금이 있을 때만, 눌러야 펼침
+let eChgOpen = false, eChgCur = null;
 function updateChgUi() {
-  $('eChgToggle').classList.toggle('hidden', ePay !== 'cash' || eChgOpen);
-  $('eChgWrap').classList.toggle('hidden', ePay !== 'cash' || !eChgOpen);
+  const opts = changeCursFor(curPay());
+  if (!opts.includes(eChgCur)) eChgCur = opts[0] || null;
+  $('eChgToggle').classList.toggle('hidden', !opts.length || eChgOpen);
+  $('eChgWrap').classList.toggle('hidden', !opts.length || !eChgOpen);
+  $('eChgToggle').textContent = `+ 거스름 ${opts.length === 1 ? CURS[opts[0]]?.name + ' ' : ''}받음`;
+  $('eChgCurs').innerHTML = opts.length > 1 ? curChips(opts, eChgCur) : '';
+  if (eChgCur) $('eChgSym').textContent = sym(eChgCur);
 }
 $('eChgToggle').addEventListener('click', () => { eChgOpen = true; updateChgUi(); $('eChg').focus(); });
+$('eChgCurs').addEventListener('click', ev => { const b = ev.target.closest('[data-cc]'); if (b) { eChgCur = b.dataset.cc; updateChgUi(); updateEntryPreview(); } });
 $('walLine').addEventListener('click', ev => { if (ev.target.closest('[data-go]')) showTab('wallet'); });
 
 // n빵 계산기: 총액 ÷ 인원을 올림 단위로 올려서 금액 칸에 넣음 (내 몫을 모자라지 않게)
-const SPLIT_UNITS = { KRW: [1, 100, 1000], USD: [0.01, 0.5, 1], KHR: [100, 500, 1000] };
 let eSplitOpen = false, eSplitN = 2, eSplitUnit = {};
-const unitLabel = (u, cur) => cur === 'KRW' ? (u === 1 ? '1원' : `${u.toLocaleString()}원 올림`)
-  : cur === 'USD' ? (u === 0.01 ? '센트까지' : `$${u} 올림`) : `${u.toLocaleString()}៛ 올림`;
+const unitsOf = cur => CURS[cur]?.units || [0.01, 1, 10];
+const unitLabel = (u, cur) => u === unitsOf(cur)[0] ? (CURS[cur]?.dec ? '끝자리까지' : fmtCur(u, cur)) : `${fmtCur(u, cur)} 올림`;
 function splitShare() {
-  const cur = PAYS[ePay].cur, total = num($('eSplitTotal').value), u = eSplitUnit[cur] ?? SPLIT_UNITS[cur][0];
+  const cur = curPay().cur, total = num($('eSplitTotal').value), u = eSplitUnit[cur] ?? unitsOf(cur)[0];
   if (!total || eSplitN < 1) return 0;
   return Math.round(Math.ceil(total / eSplitN / u - 1e-9) * u * 100) / 100;
 }
@@ -556,10 +656,10 @@ function updateSplitUi() {
   $('eSplitToggle').classList.toggle('hidden', eSplitOpen);
   $('eSplit').classList.toggle('hidden', !eSplitOpen);
   if (!eSplitOpen) return;
-  const cur = PAYS[ePay].cur, sel = eSplitUnit[cur] ?? SPLIT_UNITS[cur][0];
-  $('eSplitSym').textContent = CURS[cur].sym;
+  const cur = curPay().cur, sel = eSplitUnit[cur] ?? unitsOf(cur)[0];
+  $('eSplitSym').textContent = sym(cur);
   $('eSplitN').textContent = eSplitN;
-  $('eSplitUnits').innerHTML = SPLIT_UNITS[cur].map(u => `<button type="button" class="${u === sel ? 'on' : ''}" data-u="${u}">${unitLabel(u, cur)}</button>`).join('');
+  $('eSplitUnits').innerHTML = unitsOf(cur).map(u => `<button type="button" class="${u === sel ? 'on' : ''}" data-u="${u}">${unitLabel(u, cur)}</button>`).join('');
   const total = num($('eSplitTotal').value), share = splitShare();
   $('eSplitRes').innerHTML = share ? `${fmtCur(total, cur)} ÷ ${eSplitN}명 = <b>내 몫 ${fmtCur(share, cur)}</b> (금액 칸에 넣었어요)` : '<span class="sub">총액을 넣으면 내 몫이 금액 칸에 들어가요</span>';
 }
@@ -578,7 +678,7 @@ $('eSplit').addEventListener('click', ev => {
   const st = ev.target.closest('[data-step]');
   if (st) { eSplitN = Math.max(1, Math.min(30, eSplitN + Number(st.dataset.step))); return applySplit(); }
   const u = ev.target.closest('[data-u]');
-  if (u) { eSplitUnit[PAYS[ePay].cur] = Number(u.dataset.u); applySplit(); }
+  if (u) { eSplitUnit[curPay().cur] = Number(u.dataset.u); applySplit(); }
 });
 $('eDate').addEventListener('change', ev => { eDate = ev.target.value || today(); eDateAuto = eDate === today(); renderEntry(); });
 $('eCats').addEventListener('click', ev => {
@@ -587,25 +687,25 @@ $('eCats').addEventListener('click', ev => {
 });
 $('eCur').addEventListener('click', ev => {
   const b = ev.target.closest('[data-pay]'); if (!b) return;
-  const prevCur = PAYS[ePay].cur;
-  ePay = b.dataset.pay; $('eCur').innerHTML = payButtons(ePay); $('eSym').textContent = CURS[PAYS[ePay].cur].sym;
+  const prevCur = curPay().cur;
+  ePay = b.dataset.pay; $('eCur').innerHTML = payButtons(ePay); $('eSym').textContent = sym(curPay().cur);
   // n빵 중에 통화가 바뀌면 총액 단위가 달라지므로 비움 ($25가 25៛로 계산되지 않게)
-  if (eSplitOpen && prevCur !== PAYS[ePay].cur && $('eSplitTotal').value) { $('eSplitTotal').value = ''; $('eAmt').value = ''; toast('통화가 바뀌어 n빵 총액을 비웠어요'); }
+  if (eSplitOpen && prevCur !== curPay().cur && $('eSplitTotal').value) { $('eSplitTotal').value = ''; $('eAmt').value = ''; toast('통화가 바뀌어 n빵 총액을 비웠어요'); }
   updateChgUi(); eSplitOpen ? applySplit() : updateEntryPreview();
 });
 $('eSave').addEventListener('click', () => {
   const amount = num($('eAmt').value);
   if (!amount) { toast('금액을 입력하세요'); $('eAmt').focus(); return; }
-  const r = curRates();
+  const p = curPay();
   const rec = { id: newId(), createdAt: Date.now(), date: eDate, cat: eCat || 'etc',
-    cur: PAYS[ePay].cur, method: PAYS[ePay].method, amount, memo: $('eMemo').value.trim(), rKrw: r.krw, rKhr: r.khr,
-    khrChange: ePay === 'cash' ? num($('eChg').value) : 0 };
+    method: p.method, cur: p.cur, amount, memo: $('eMemo').value.trim(), r: snapRates() };
+  const chg = entryChg(); if (chg) rec.chg = chg;
   // n빵으로 계산한 금액 그대로면 총액·인원을 같이 저장 (기록에 '₩34,000÷3' 표시)
   if (eSplitOpen && num($('eSplitTotal').value) && amount === splitShare()) rec.split = { total: num($('eSplitTotal').value), n: eSplitN };
   // 지갑을 쓰는 중인데 이 지출로 잔액이 마이너스가 되면 먼저 알림 (빠진 거스름/넣기 기록 확인)
-  if (S.moves.length && ePay in WALLETS) {
-    const bal = balances()[ePay];
-    if (bal - amount < -0.005) { openLow(ePay, bal, rec); return; }
+  if (S.moves.length && p.method !== '입금') {
+    const bal = balances()[p.id];
+    if (bal - amount < -0.005) { openLow(p.id, bal, rec); return; }
   }
   commitEntry(rec);
 });
@@ -613,7 +713,7 @@ function commitEntry(rec) {
   S.expenses.push(rec);
   if (rec.split) S.settings.lastSplitN = rec.split.n;
   save();
-  $('eAmt').value = ''; $('eMemo').value = ''; $('eChg').value = ''; eChgOpen = false; eCat = null; ePay = 'cash';
+  $('eAmt').value = ''; $('eMemo').value = ''; $('eChg').value = ''; eChgOpen = false; eCat = null; ePay = pays()[0]?.id;
   $('eSplitTotal').value = ''; eSplitOpen = false;
   document.activeElement?.blur();
   navigator.vibrate?.(15);
@@ -625,45 +725,48 @@ $('eDayList').addEventListener('click', ev => { const it = ev.target.closest('[d
 function renderList() {
   const el = $('tab-list');
   if (!S.expenses.length) { el.innerHTML = `<div class="empty">아직 기록이 없어요.<br>입력 탭에서 추가하세요.</div>`; return; }
-  const byDate = {}, daily = num(S.settings.dailyUsd);
+  const byDate = {}, daily = num(S.settings.daily);
   for (const e of S.expenses) (byDate[e.date] ||= []).push(e);
   el.innerHTML = Object.keys(byDate).sort().reverse().map(d => {
     const items = byDate[d].sort((a, b) => a.createdAt - b.createdAt), dt = dayTotal(d);
     return `<div class="day"><div class="dayhead"><span>${md(d)}</span>
-      <small>${usd(dt.usd)} · ${krw(dt.krw)} (${leftTag(daily - dt.usd)})</small></div>
+      <small>${withKrw(dt.b, dt.krw)} (${leftTag(daily - dt.b)})</small></div>
       <div class="items">${items.map(itemHtml).join('')}</div></div>`;
   }).join('');
 }
 $('tab-list').addEventListener('click', ev => { const it = ev.target.closest('[data-id]'); if (it) openEdit(it.dataset.id); });
 
 // ---------- 지갑 ----------
-// 잔액 = 넣기 + 바꾸기(받은 쪽) − 바꾸기(낸 쪽) + 보정 − 지출 (+ 거스름 리엘)
+// 잔액 = 넣기 + 바꾸기(받은 쪽) − 바꾸기(낸 쪽) + 보정 − 지출 (+ 거스름)
 function balances() {
-  const b = { cash: 0, riel: 0, card: 0 };
+  const b = {};
+  for (const w of wallets()) b[w.id] = 0;
   for (const m of S.moves) {
-    if (m.type === 'xfer') { b[m.from] -= num(m.amount); b[m.to] += num(m.amount2); }
+    if (m.type === 'xfer') { if (m.from in b) b[m.from] -= num(m.amount); if (m.to in b) b[m.to] += num(m.amount2); }
     else if (m.to in b) b[m.to] += num(m.amount);
   }
   for (const e of S.expenses) {
     const k = payKeyOf(e);
     if (k in b) b[k] -= num(e.amount);
-    b.riel += num(e.khrChange);
+    if (e.chg) { const ck = payIdFor('현금', e.chg.cur); if (ck in b) b[ck] += num(e.chg.amount); }
   }
   return b;
 }
-const toUsd = (amt, cur, r = curRates()) => cur === 'USD' ? amt : cur === 'KHR' ? amt / r.khr : amt / r.krw;
-const fromUsd = (u, cur, r = curRates()) => cur === 'USD' ? u : cur === 'KHR' ? u * r.khr : u * r.krw;
+// 오늘 환율로 통화 간 환산 (지갑 합계, 바꾸기 받은 금액 계산용)
+const toBase = (amt, cur, r = curRates()) => amt / (r[cur] || 1);
+const fromBase = (v, cur, r = curRates()) => v * (r[cur] || 1);
 
 function renderWallet() {
-  const el = $('tab-wallet'), b = balances(), r = curRates();
-  const total = Object.entries(WALLETS).reduce((a, [k, w]) => a + toUsd(b[k], w.cur, r), 0);
+  const el = $('tab-wallet'), b = balances(), r = curRates(), ws = wallets();
+  if (!ws.length) { el.innerHTML = `<div class="empty">현금·카드 결제 버튼이 없어요.<br>설정 탭에서 추가하세요.</div>`; return; }
+  const total = ws.reduce((a, w) => a + toBase(b[w.id], w.cur, r), 0);
   const moves = [...S.moves].sort((x, y) => y.date.localeCompare(x.date) || y.createdAt - x.createdAt);
   el.innerHTML = `
-  <div class="wals">${Object.entries(WALLETS).map(([k, w]) => `<div class="wal">
-    <div class="n">${w.icon} ${w.label}</div>
-    <div class="b ${b[k] < 0 ? 'bad' : ''}">${fmtCur(b[k], w.cur)}</div>
-    ${w.cur === 'KHR' ? `<div class="sub">≈ ${usd(toUsd(b[k], 'KHR', r))}</div>` : ''}</div>`).join('')}</div>
-  <div class="row" style="padding:0 2px 10px"><span class="k">합계 (오늘 환율)</span><span class="v"><b>${usd(total)}</b> · ${krw(fromUsd(total, 'KRW', r))}</span></div>
+  <div class="wals">${ws.map(w => `<div class="wal">
+    <div class="n">${walletIcon(w)} ${payLabel(w)}</div>
+    <div class="b ${b[w.id] < 0 ? 'bad' : ''}">${fmtCur(b[w.id], w.cur)}</div>
+    ${w.cur !== BASE() ? `<div class="sub">≈ ${fb(toBase(b[w.id], w.cur, r))}</div>` : ''}</div>`).join('')}</div>
+  <div class="row" style="padding:0 2px 10px"><span class="k">합계 (오늘 환율)</span><span class="v"><b>${fb(total)}</b>${BASE() !== 'KRW' ? ' · ' + krw(fromBase(total, 'KRW', r)) : ''}</span></div>
   <div class="wbtns">
     <button class="btn" data-act="in">+ 넣기</button>
     <button class="btn ghost" data-act="xfer">⇄ 바꾸기</button>
@@ -671,18 +774,20 @@ function renderWallet() {
   </div>
   ${S.moves.length ? lowNotice(b) : ''}
   ${!S.moves.length ? `<div class="card"><h2>시작하기</h2>
-    지금 가진 현금(달러·리엘)과 카드 잔액을 세어서 <b>✓ 맞추기</b>로 넣으세요. 그 뒤로는 지출을 저장할 때마다 지갑에서 자동으로 빠져요.
-    <div class="sub" style="margin-top:8px">· <b>넣기</b>: 환전, ATM 인출, 카드 충전<br>· <b>바꾸기</b>: 달러→리엘 환전 등 (지출 아님)<br>· <b>맞추기</b>: 실제로 센 금액과 다를 때 보정 (지출 아님)</div></div>`
+    지금 가진 현금과 카드 잔액을 세어서 <b>✓ 맞추기</b>로 넣으세요. 그 뒤로는 지출을 저장할 때마다 지갑에서 자동으로 빠져요.
+    <div class="sub" style="margin-top:8px">· <b>넣기</b>: 환전, ATM 인출, 카드 충전<br>· <b>바꾸기</b>: 현금끼리 환전, 현금으로 카드 충전 등 (지출 아님)<br>· <b>맞추기</b>: 실제로 센 금액과 다를 때 보정 (지출 아님)</div></div>`
   : `<div class="dayhead"><span>지갑 기록</span><small class="sub">지출은 내역 탭에 있어요</small></div>
     <div class="items">${moves.map(moveHtml).join('')}</div>`}`;
 }
+// 지갑 기록의 지갑이 지금 결제 버튼에 없어도(설정에서 지운 경우) 이름은 보여줌
+const walletName = id => { const w = payOf(id); return w ? payLabel(w) : id; };
+const walletCur = id => payOf(id)?.cur || (id === 'riel' ? 'KHR' : id.split('-')[1]) || BASE();
 function moveHtml(m) {
-  const W = WALLETS;
   let ic, name, amt;
-  if (m.type === 'in') { ic = '➕'; name = `${W[m.to].label}에 넣기`; amt = '+' + fmtCur(num(m.amount), W[m.to].cur); }
-  else if (m.type === 'xfer') { ic = '⇄'; name = `${W[m.from].label} → ${W[m.to].label}`;
-    amt = `${fmtCur(num(m.amount), W[m.from].cur)}<div class="sub">→ ${fmtCur(num(m.amount2), W[m.to].cur)}</div>`; }
-  else { ic = '✓'; name = `${W[m.to].label} ${m.memo || '보정'}`; const cur = W[m.to].cur;
+  if (m.type === 'in') { ic = '➕'; name = `${walletName(m.to)}에 넣기`; amt = '+' + fmtCur(num(m.amount), walletCur(m.to)); }
+  else if (m.type === 'xfer') { ic = '⇄'; name = `${walletName(m.from)} → ${walletName(m.to)}`;
+    amt = `${fmtCur(num(m.amount), walletCur(m.from))}<div class="sub">→ ${fmtCur(num(m.amount2), walletCur(m.to))}</div>`; }
+  else { ic = '✓'; name = `${walletName(m.to)} ${m.memo || '보정'}`; const cur = walletCur(m.to);
     const delta = (num(m.amount) >= 0 ? '+' : '') + fmtCur(num(m.amount), cur);
     amt = m.set != null ? `= ${fmtCur(num(m.set), cur)}${m.memo === '시작 잔액' ? '' : `<div class="sub">${delta}</div>`}` : delta; }
   const sub = [md(m.date), m.type !== 'adjust' ? m.memo : ''].filter(Boolean).join(' · ');
@@ -703,30 +808,38 @@ $('tab-wallet').addEventListener('click', ev => {
 });
 
 // ---------- 잔액 부족 ----------
-// 거스름 리엘이 비어 있는 최근 '현금 $' 기록 (리엘이 모자랄 때 빠진 거스름 후보)
-const changeCandidates = () => S.expenses.filter(e => payKeyOf(e) === 'cash' && !num(e.khrChange))
-  .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt).slice(0, 5);
-const lowHint = k => k === 'riel'
-  ? (changeCandidates().length
-    ? '달러로 내고 리엘로 거스름을 받은 기록이 빠졌을 수 있어요. 아래 기록을 눌러 거스름 리엘을 추가하세요.'
-    : '빠진 리엘이 있을 수 있어요 (거스름, 환전 등). 지갑의 리엘을 세어서 맞추기로 맞추세요.')
-  : '환전·ATM·카드 충전한 기록이 빠졌을 수 있어요. 지갑 탭에서 넣기로 추가하거나 실제 금액으로 맞추세요.';
-const candidateList = () => { const c = changeCandidates();
-  return c.length ? `<div class="sub" style="margin-bottom:6px">거스름이 비어 있는 최근 현금 $ 기록</div><div class="items">${c.map(itemHtml).join('')}</div>` : ''; };
+// 부족한 현금 지갑의 통화로 거스름을 받았을 수 있는 기록: 다른 통화 현금 결제 중 거스름이 비어 있는 최근 5건
+function changeCandidates(id) {
+  const w = payOf(id);
+  if (!w || w.method !== '현금') return [];
+  return S.expenses.filter(e => (e.method || '현금') === '현금' && e.cur !== w.cur && cashCurs().includes(e.cur) && !(e.chg && num(e.chg.amount)))
+    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt).slice(0, 5);
+}
+function lowHint(id) {
+  const w = payOf(id);
+  if (w?.method === '현금' && changeCursFor(w).length)
+    return changeCandidates(id).length
+      ? `다른 통화로 내고 ${CURS[w.cur]?.name || w.cur}로 거스름을 받은 기록이 빠졌을 수 있어요. 아래 기록을 눌러 거스름을 추가하세요.`
+      : `빠진 ${CURS[w.cur]?.name || w.cur}가 있을 수 있어요 (거스름, 환전 등). 지갑의 돈을 세어서 맞추기로 맞추세요.`;
+  return '환전·ATM·카드 충전한 기록이 빠졌을 수 있어요. 지갑 탭에서 넣기로 추가하거나 실제 금액으로 맞추세요.';
+}
+const candidateList = id => { const c = changeCandidates(id);
+  return c.length ? `<div class="sub" style="margin-bottom:6px">거스름이 비어 있는 최근 현금 기록</div><div class="items">${c.map(itemHtml).join('')}</div>` : ''; };
 function lowNotice(b) {
-  const neg = Object.keys(WALLETS).filter(k => b[k] < -0.005);
+  const neg = wallets().filter(w => b[w.id] < -0.005);
   if (!neg.length) return '';
-  return `<div class="card" style="border-color:var(--bad)"><h2 class="bad">⚠️ ${neg.map(k => WALLETS[k].label).join(', ')} 잔액이 마이너스예요</h2>
-    <div class="sub">${lowHint(neg.includes('riel') ? 'riel' : neg[0])}</div>
-    ${neg.includes('riel') ? `<div style="margin-top:10px">${candidateList()}</div>` : ''}</div>`;
+  const withCand = neg.find(w => changeCandidates(w.id).length) || neg[0];
+  return `<div class="card" style="border-color:var(--bad)"><h2 class="bad">⚠️ ${neg.map(payLabel).join(', ')} 잔액이 마이너스예요</h2>
+    <div class="sub">${lowHint(withCand.id)}</div>
+    <div style="margin-top:10px">${candidateList(withCand.id)}</div></div>`;
 }
 let lowRec = null;
-function openLow(k, bal, rec) {
+function openLow(id, bal, rec) {
   lowRec = rec;
-  const w = WALLETS[k];
-  $('lowTitle').textContent = `${w.label} 잔액이 부족해요`;
-  $('lowDesc').innerHTML = `지갑 ${fmtCur(bal, w.cur)}, 이번 지출 ${fmtCur(rec.amount, w.cur)} → 저장하면 <b class="bad">${fmtCur(bal - rec.amount, w.cur)}</b><br>${lowHint(k)}`;
-  $('lowList').innerHTML = k === 'riel' ? candidateList() : '';
+  const w = payOf(id);
+  $('lowTitle').textContent = `${payLabel(w)} 잔액이 부족해요`;
+  $('lowDesc').innerHTML = `지갑 ${fmtCur(bal, w.cur)}, 이번 지출 ${fmtCur(rec.amount, w.cur)} → 저장하면 <b class="bad">${fmtCur(bal - rec.amount, w.cur)}</b><br>${lowHint(id)}`;
+  $('lowList').innerHTML = candidateList(id);
   openSheet('lowSheet');
 }
 $('lowSave').addEventListener('click', () => { closeSheets(); if (lowRec) commitEntry(lowRec); lowRec = null; });
@@ -735,17 +848,17 @@ $('lowWallet').addEventListener('click', () => { closeSheets(); showTab('wallet'
 $('lowList').addEventListener('click', ev => { const it = ev.target.closest('[data-id]'); if (!it) return; closeSheets(); openEdit(it.dataset.id, true); });
 
 // 넣기 / 바꾸기 시트
-let mType = 'in', mId = null, mFrom = 'cash', mTo = 'riel';
-const walletButtons = sel => Object.entries(WALLETS).map(([k, w]) =>
-  `<button type="button" class="${k === sel ? 'on' : ''}" data-w="${k}">${w.label}</button>`).join('');
+let mType = 'in', mId = null, mFrom = null, mTo = null;
+const walletButtons = sel => wallets().map(w =>
+  `<button type="button" class="${w.id === sel ? 'on' : ''}" data-w="${w.id}">${payLabel(w)}</button>`).join('');
 function openMove(type, id) {
-  const m = id ? S.moves.find(x => x.id === id) : null;
+  const m = id ? S.moves.find(x => x.id === id) : null, ws = wallets();
   mType = type; mId = m ? m.id : null;
   const isIn = type === 'in';
-  mFrom = m ? (isIn ? m.to : m.from) : 'cash';
-  mTo = m && !isIn ? m.to : 'riel';
+  mFrom = m ? (isIn ? m.to : m.from) : ws[0]?.id;
+  mTo = m && !isIn ? m.to : (ws[1] || ws[0])?.id;
   $('mTitle').textContent = isIn ? '지갑에 넣기' : '바꾸기';
-  $('mDesc').textContent = isIn ? '환전, ATM 인출, 카드 충전, 한국에서 가져온 돈 등' : '달러를 리엘로 바꾸거나 현금으로 카드를 충전할 때. 지출로 계산하지 않아요.';
+  $('mDesc').textContent = isIn ? '환전, ATM 인출, 카드 충전, 한국에서 가져온 돈 등' : '현금끼리 환전하거나 현금으로 카드를 충전할 때. 지출로 계산하지 않아요.';
   $('mFromLabel').textContent = isIn ? '넣을 곳' : '낸 곳';
   $('mToWrap').classList.toggle('hidden', isIn);
   $('mDate').value = m ? m.date : today();
@@ -756,12 +869,12 @@ function openMove(type, id) {
 }
 function renderMoveChips() {
   $('mFrom').innerHTML = walletButtons(mFrom); $('mTo').innerHTML = walletButtons(mTo);
-  $('mSym').textContent = CURS[WALLETS[mFrom].cur].sym; $('mSym2').textContent = CURS[WALLETS[mTo].cur].sym;
+  $('mSym').textContent = sym(walletCur(mFrom)); $('mSym2').textContent = sym(walletCur(mTo));
   updateMovePreview();
 }
 function updateMovePreview() { // 받은 금액을 비워두면 오늘 환율로 계산한 값을 사용
-  const v = fromUsd(toUsd(num($('mAmt').value), WALLETS[mFrom].cur), WALLETS[mTo].cur);
-  $('mAmt2').placeholder = v ? (WALLETS[mTo].cur === 'USD' ? v.toFixed(2) : String(Math.round(v))) : '0';
+  const to = walletCur(mTo), v = fromBase(toBase(num($('mAmt').value), walletCur(mFrom)), to);
+  $('mAmt2').placeholder = v ? String(Math.round(v * 10 ** (CURS[to]?.dec ?? 2)) / 10 ** (CURS[to]?.dec ?? 2)) : '0';
 }
 $('mAmt').addEventListener('input', updateMovePreview);
 $('mFrom').addEventListener('click', ev => { const b = ev.target.closest('[data-w]'); if (b) { mFrom = b.dataset.w; renderMoveChips(); } });
@@ -788,9 +901,9 @@ $('mDelete').addEventListener('click', () => {
 // 실제 잔액 맞추기: 센 금액과 앱 잔액의 차이를 보정 기록으로 남김 (지출 아님)
 function openAdjust() {
   const b = balances();
-  $('adjInputs').innerHTML = Object.entries(WALLETS).map(([k, w]) => `
-    <label>${w.icon} ${w.label} <span class="sub">(앱 잔액 ${fmtCur(b[k], w.cur)})</span></label>
-    <div class="amount small"><input data-adj="${k}" inputmode="decimal" placeholder="실제 금액 (같으면 비워두기)" autocomplete="off"><span>${CURS[w.cur].sym}</span></div>`).join('');
+  $('adjInputs').innerHTML = wallets().map(w => `
+    <label>${walletIcon(w)} ${payLabel(w)} <span class="sub">(앱 잔액 ${fmtCur(b[w.id], w.cur)})</span></label>
+    <div class="amount small"><input data-adj="${w.id}" inputmode="decimal" placeholder="실제 금액 (같으면 비워두기)" autocomplete="off"><span>${sym(w.cur)}</span></div>`).join('');
   openSheet('adjSheet');
 }
 $('adjSave').addEventListener('click', () => {
@@ -815,80 +928,100 @@ function renderSummary() {
       <button class="btn" onclick="showTab('settings')">설정으로 가기</button></div>`;
     return;
   }
-  const daily = num(S.settings.dailyUsd), r = curRates();
-  const diff = st.accUsd - st.sUsd, diffK = st.accKrw - st.sKrw, paidDiff = st.paidUsd - st.sUsd;
-  const remainDays = st.totalDays - st.elapsed, projUsd = st.avgUsd * st.totalDays;
+  const daily = num(S.settings.daily), K = BASE() !== 'KRW';
+  const sk = v => K ? `<br><span class="sub">${krw(v)}</span>` : '';
+  const diff = st.acc - st.sB, diffK = st.accKrw - st.sKrw, paidDiff = st.paidB - st.sB;
+  const remainDays = st.totalDays - st.elapsed, proj = st.avg * st.totalDays;
   const statusTxt = st.t < st.start ? '출장 시작 전' : st.t > st.end ? '출장 종료' : `${st.elapsed}일째 / 총 ${st.totalDays}일`;
   const cats = Object.entries(st.byCat).sort((a, b) => b[1] - a[1]), maxCat = cats[0]?.[1] || 1;
+  // 결제 방식별: 결제 버튼 순서대로, 지금 버튼에 없는 기록은 뒤에
+  const payRows = uniq([...pays().map(p => p.id), ...Object.keys(st.byPay)]).filter(id => st.byPay[id]).map(id => st.byPay[id]);
 
   el.innerHTML = `
   <div class="card">
     <h2>${md(st.start)} ~ ${md(st.end)} · ${statusTxt}</h2>
     <div class="sub">총 사용</div>
-    <div class="big">${usd(st.sUsd)}</div>
-    <div class="sub">${krw(st.sKrw)}</div>
+    <div class="big">${fb(st.sB)}</div>
+    ${K ? `<div class="sub">${krw(st.sKrw)}</div>` : ''}
     <div class="hr"></div>
-    <div class="row"><span class="k">하루 평균 (${st.elapsed}일 기준)</span><span class="v"><b>${usd(st.avgUsd)}</b><br><span class="sub">${krw(st.avgKrw)}</span></span></div>
-    <div class="row"><span class="k">하루 일비</span><span class="v">${usd(daily)}<br><span class="sub">평균이 일비보다 ${st.avgUsd <= daily ? `<span class="good">${usd(daily - st.avgUsd)} 적음</span>` : `<span class="bad">${usd(st.avgUsd - daily)} 많음</span>`}</span></span></div>
+    <div class="row"><span class="k">하루 평균 (${st.elapsed}일 기준)</span><span class="v"><b>${fb(st.avg)}</b>${sk(st.avgKrw)}</span></div>
+    <div class="row"><span class="k">하루 일비</span><span class="v">${fb(daily)}<br><span class="sub">평균이 일비보다 ${st.avg <= daily ? `<span class="good">${fb(daily - st.avg)} 적음</span>` : `<span class="bad">${fb(st.avg - daily)} 많음</span>`}</span></span></div>
   </div>
 
   <div class="card">
-    <h2>오늘까지 일비 기준 (${st.elapsed}일 × ${usd(daily)})</h2>
-    <div class="row"><span class="k">받을 일비 누적</span><span class="v">${usd(st.accUsd)}<br><span class="sub">${krw(st.accKrw)} (지급 환율)</span></span></div>
-    <div class="row"><span class="k">사용</span><span class="v">${usd(st.sUsd)}<br><span class="sub">${krw(st.sKrw)}</span></span></div>
-    <div class="verdict ${diff >= 0 ? 'good' : 'bad'}">${diff >= 0 ? `${usd(diff)} 남음 (${krw(diffK)})` : `${usd(-diff)} 초과 (${krw(-diffK)})`}</div>
+    <h2>오늘까지 일비 기준 (${st.elapsed}일 × ${fb(daily)})</h2>
+    <div class="row"><span class="k">받을 일비 누적</span><span class="v">${fb(st.acc)}${K ? `<br><span class="sub">${krw(st.accKrw)} (지급 환율)</span>` : ''}</span></div>
+    <div class="row"><span class="k">사용</span><span class="v">${fb(st.sB)}${sk(st.sKrw)}</span></div>
+    <div class="verdict ${diff >= 0 ? 'good' : 'bad'}">${diff >= 0 ? `${fb(diff)} 남음` : `${fb(-diff)} 초과`}${K ? ` (${krw(Math.abs(diffK))})` : ''}</div>
   </div>
 
   <div class="card">
     <h2>선지급 받은 일비 기준</h2>
-    <div class="row"><span class="k">지급받음 (${st.paidMonths.map(x => +x.ym.slice(5) + '월').join(', ') || '-'})</span><span class="v">${usd(st.paidUsd)}<br><span class="sub">${krw(st.paidKrw)}</span></span></div>
-    <div class="row"><span class="k">지급액 중 남은 돈</span><span class="v ${paidDiff >= 0 ? 'good' : 'bad'}"><b>${usd(paidDiff)}</b><br><span class="sub">${krw(st.paidKrw - st.sKrw)}</span></span></div>
-    ${remainDays > 0 ? `<div class="row"><span class="k">남은 ${remainDays}일 동안 하루에 쓸 수 있는 돈</span><span class="v"><b>${usd((st.totUsd - st.sUsd) / remainDays)}</b></span></div>` : ''}
+    <div class="row"><span class="k">지급받음 (${st.paidMonths.map(x => +x.ym.slice(5) + '월').join(', ') || '-'})</span><span class="v">${fb(st.paidB)}${sk(st.paidKrw)}</span></div>
+    <div class="row"><span class="k">지급액 중 남은 돈</span><span class="v ${paidDiff >= 0 ? 'good' : 'bad'}"><b>${fb(paidDiff)}</b>${sk(st.paidKrw - st.sKrw)}</span></div>
+    ${remainDays > 0 ? `<div class="row"><span class="k">남은 ${remainDays}일 동안 하루에 쓸 수 있는 돈</span><span class="v"><b>${fb((st.tot - st.sB) / remainDays)}</b></span></div>` : ''}
   </div>
 
   ${cats.length ? `<div class="card"><h2>카테고리별</h2>
     ${cats.map(([id, v]) => { const c = catOf(id); return `<div class="row"><span class="k" style="flex:1">${esc(c.icon)} ${esc(c.name)}
-      <div class="bar" style="width:${Math.max(4, v / maxCat * 100)}%"></div></span><span class="v">${usd(v)}<br><span class="sub">${Math.round(v / st.sUsd * 100)}%</span></span></div>`; }).join('')}
+      <div class="bar" style="width:${Math.max(4, v / maxCat * 100)}%"></div></span><span class="v">${fb(v)}<br><span class="sub">${st.sB ? Math.round(v / st.sB * 100) : 0}%</span></span></div>`; }).join('')}
+  </div>` : ''}
+
+  ${payRows.length ? `<div class="card">
+    <h2>결제 방식별 사용</h2>
+    ${payRows.map(p => `<div class="row"><span class="k">${p.method === '입금' ? '🏦' : p.method === '카드' ? '💳' : CURS[p.cur]?.icon || '💵'} ${p.method} ${CURS[p.cur]?.name || p.cur}</span>
+      <span class="v">${fmtCur(p.amt, p.cur)}${p.cur !== BASE() ? `<br><span class="sub">≈ ${fb(p.b)}</span>` : ''}</span></div>`).join('')}
   </div>` : ''}
 
   <div class="card">
-    <h2>결제 방식별 사용</h2>
-    <div class="row"><span class="k">💵 현금 달러</span><span class="v">${usd(st.byPay.cash)}</span></div>
-    <div class="row"><span class="k">🪙 현금 리엘</span><span class="v">${khr(st.byPay.riel)}<br><span class="sub">≈ ${usd(st.byPayUsd.riel)}</span></span></div>
-    <div class="row"><span class="k">💳 카드</span><span class="v">${usd(st.byPay.card)}</span></div>
-    <div class="row"><span class="k">🏦 입금 (n빵 등)</span><span class="v">${krw(st.byPay.bank)}<br><span class="sub">≈ ${usd(st.byPayUsd.bank)}</span></span></div>
-  </div>
-
-  <div class="card">
     <h2>전체 출장 예상</h2>
-    <div class="row"><span class="k">총 일비 (${st.totalDays}일)</span><span class="v">${usd(st.totUsd)}<br><span class="sub">${krw(st.totKrw)}</span></span></div>
-    <div class="row"><span class="k">지금 페이스면 총 사용</span><span class="v">${usd(projUsd)}</span></div>
-    <div class="row"><span class="k">예상 결과</span><span class="v ${st.totUsd - projUsd >= 0 ? 'good' : 'bad'}">${st.totUsd - projUsd >= 0 ? usd(st.totUsd - projUsd) + ' 남음' : usd(projUsd - st.totUsd) + ' 초과'}</span></div>
+    <div class="row"><span class="k">총 일비 (${st.totalDays}일)</span><span class="v">${fb(st.tot)}${sk(st.totKrw)}</span></div>
+    <div class="row"><span class="k">지금 페이스면 총 사용</span><span class="v">${fb(proj)}</span></div>
+    <div class="row"><span class="k">예상 결과</span><span class="v ${st.tot - proj >= 0 ? 'good' : 'bad'}">${st.tot - proj >= 0 ? fb(st.tot - proj) + ' 남음' : fb(proj - st.tot) + ' 초과'}</span></div>
   </div>`;
 }
 
 // ---------- 설정 ----------
+const curOptions = sel => Object.entries(CURS).map(([k, c]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${c.sym} ${c.name} (${k})</option>`).join('');
 function renderSettings() {
-  const el = $('tab-settings'), s = S.settings, ms = months();
+  const el = $('tab-settings'), s = S.settings, ms = months(), bs = sym(s.base), locked = S.expenses.length > 0;
   el.innerHTML = `
   <div class="card">
     <h2>출장 정보</h2>
-    <label>출장 이름 (선택)</label><input id="sTitle" value="${esc(s.title)}" placeholder="예: 캄보디아 출장">
+    <label>출장 이름 (선택)</label><input id="sTitle" value="${esc(s.title)}" placeholder="예: ${esc(PRESETS[s.preset]?.name || '캄보디아')} 출장">
     <div class="two">
       <div><label>시작일</label><input type="date" id="sStart" value="${s.start}"></div>
       <div><label>종료일</label><input type="date" id="sEnd" value="${s.end}"></div>
-      <div><label>하루 일비 ($)</label><input id="sDaily" inputmode="decimal" value="${s.dailyUsd}"></div>
-      <div><label>기본 지급 환율 (₩/$)</label><input id="sPay" inputmode="decimal" value="${s.defaultPayRate}"></div>
+      <div><label>하루 일비 (${bs})</label><input id="sDaily" inputmode="decimal" value="${s.daily}"></div>
+      <div><label>기본 지급 환율 (₩/${bs})</label><input id="sPay" inputmode="decimal" value="${s.defaultPayRate}"></div>
     </div>
+  </div>
+
+  <div class="card">
+    <h2>나라 · 통화</h2>
+    <div class="sub">나라를 고르면 결제 버튼과 환율 설정이 한 번에 바뀌어요. 이미 적은 기록은 그대로예요.</div>
+    <div class="units" id="presetBtns">${Object.entries(PRESETS).map(([k, p]) => `<button type="button" class="${s.preset === k ? 'on' : ''}" data-preset="${k}">${p.name}</button>`).join('')}</div>
+    <label>일비 통화</label>
+    <select id="sBase" ${locked ? 'disabled' : ''}>${curOptions(s.base)}</select>
+    ${locked ? '<div class="sub" style="margin-top:4px">기록이 있으면 일비 통화를 바꿀 수 없어요. 새 출장 기능(다음 버전)에서 바꿀 수 있어요.</div>' : ''}
+    <label>결제 버튼 (입력 화면에 이 순서로 나와요)</label>
+    <div id="payEdit">${s.pays.map(p => `<div class="payrow"><span>${p.method === '카드' ? '💳' : p.method === '입금' ? '🏦' : CURS[p.cur]?.icon || '💵'} ${payLabel(p)} <span class="sub">${CURS[p.cur]?.name || p.cur}</span></span>
+      <button class="x" data-delpay="${p.id}" aria-label="삭제">✕</button></div>`).join('')}</div>
+    <div class="addpay">
+      <select id="apMethod">${Object.keys(METHODS).map(m => `<option>${m}</option>`).join('')}</select>
+      <select id="apCur">${curOptions(s.base)}</select>
+      <button class="btn" id="apAdd">추가</button>
+    </div>
+    <div class="sub" style="margin-top:6px">현금 통화가 2개 이상이면 '거스름 받음'으로 다른 통화 거스름을 적을 수 있어요. 입금은 지갑에 포함하지 않아요.</div>
   </div>
 
   <div class="card">
     <h2>월별 일비 지급 (회사 선지급)</h2>
     ${ms.length ? `<table>
-      <tr><th>월</th><th>일수</th><th>지급 $</th><th>지급 환율</th><th>지급 ₩</th></tr>
+      <tr><th>월</th><th>일수</th><th>지급 ${bs}</th><th>지급 환율</th><th>지급 ₩</th></tr>
       ${ms.map(x => `<tr>
         <td>${+x.ym.slice(5)}월${x.paid ? '' : ' <span class="sub">예정</span>'}<div class="sub">${md(x.from)}~</div></td>
-        <td>${x.days}</td><td>${usd(x.usdAmt)}</td>
+        <td>${x.days}</td><td>${fb(x.amt)}</td>
         <td><input data-ym="${x.ym}" class="mrate" inputmode="decimal" value="${s.payRates[x.ym] ?? ''}" placeholder="${s.defaultPayRate}"></td>
         <td>${krw(x.krwAmt)}</td></tr>`).join('')}
     </table>
@@ -915,13 +1048,17 @@ function renderSettings() {
     <input type="file" id="importFile" accept=".json,application/json" class="hidden">
     <button class="btn danger" onclick="resetAll()">전체 초기화</button>
   </div>
-  <div class="sub" style="text-align:center">출장 경비 ${APP_VERSION}</div>`;
+  <div class="sub" style="text-align:center">${APP_NAME} ${APP_VERSION}</div>`;
 
   const bind = (id, key, isNum) => $(id).addEventListener('change', ev => {
     S.settings[key] = isNum ? num(ev.target.value) : ev.target.value; save(); renderAll();
   });
   bind('sTitle', 'title'); bind('sStart', 'start'); bind('sEnd', 'end');
-  bind('sDaily', 'dailyUsd', true); bind('sPay', 'defaultPayRate', true);
+  bind('sDaily', 'daily', true); bind('sPay', 'defaultPayRate', true);
+  $('sBase').addEventListener('change', ev => setBase(ev.target.value));
+  $('presetBtns').addEventListener('click', ev => { const b = ev.target.closest('[data-preset]'); if (b) applyPreset(b.dataset.preset); });
+  $('payEdit').addEventListener('click', ev => { const b = ev.target.closest('[data-delpay]'); if (b) removePay(b.dataset.delpay); });
+  $('apAdd').addEventListener('click', () => addPay($('apMethod').value, $('apCur').value));
   el.querySelectorAll('.mrate').forEach(inp => inp.addEventListener('change', ev => {
     const v = num(ev.target.value), ym = ev.target.dataset.ym;
     if (v) S.settings.payRates[ym] = v; else delete S.settings.payRates[ym];
@@ -941,6 +1078,45 @@ function renderSettings() {
     S.settings.categories.push({ id: newId(), icon: '🏷️', name: '새 항목' }); save(); renderAll();
   });
   $('importFile').addEventListener('change', importJson);
+}
+
+// 일비 통화 변경: 기록이 없을 때만. 고정 환율·지급 환율은 이전 통화 기준이라 다시 설정
+function setBase(cur, quiet) {
+  if (cur === S.settings.base) return;
+  if (S.expenses.length) { toast('기록이 있으면 일비 통화를 바꿀 수 없어요'); renderAll(); return; }
+  const s = S.settings;
+  s.base = cur; s.rateCfg = {}; s.payRates = {};
+  s.defaultPayRate = cur === 'KRW' ? 1 : Math.round(perUsd('KRW') / perUsd(cur) * 100) / 100;
+  save(); renderAll();
+  if (!quiet) toast(`일비 통화를 ${CURS[cur].name}(으)로 바꿨어요. 하루 일비와 지급 환율을 확인하세요`);
+}
+function applyPreset(k) {
+  const p = PRESETS[k], s = S.settings;
+  if (!confirm(`결제 버튼과 환율 설정을 '${p.name}' 기본값으로 바꿀까요?\n이미 적은 기록과 지갑 기록은 그대로예요.`)) return;
+  if (p.base !== s.base && !S.expenses.length) setBase(p.base, true);
+  s.preset = k;
+  s.pays = p.pays.map(makePay);
+  s.rateCfg = {};
+  for (const [c, v] of Object.entries(p.fixed)) s.rateCfg[c] = { fixed: true, value: v };
+  ePay = s.pays[0].id;
+  save(); renderAll(); fetchRates(); toast(`${p.name} 설정으로 바꿨어요`);
+}
+const METHOD_ORDER = Object.keys(METHODS);
+function addPay(method, cur) {
+  const p = makePay([method, cur]);
+  if (payOf(p.id)) { toast('이미 있는 결제 버튼이에요'); return; }
+  S.settings.pays.push(p);
+  // 현금 → 카드 → 입금 순서 유지 (같은 결제수단 안에서는 추가한 순서)
+  S.settings.pays.sort((a, b) => METHOD_ORDER.indexOf(a.method) - METHOD_ORDER.indexOf(b.method));
+  save(); renderAll(); toast(`${payLabel(p)} 버튼을 추가했어요`);
+}
+function removePay(id) {
+  const p = payOf(id); if (!p) return;
+  if (pays().length <= 1) { toast('결제 버튼은 하나 이상 있어야 해요'); return; }
+  const used = S.expenses.filter(e => payKeyOf(e) === id).length;
+  if (!confirm(`'${payLabel(p)}' 버튼을 지울까요?${used ? `\n이 버튼으로 적은 기록 ${used}건은 그대로 남아요.` : ''}${p.method !== '입금' ? '\n이 지갑은 지갑 탭에서 사라져요.' : ''}`)) return;
+  S.settings.pays = pays().filter(x => x.id !== id);
+  save(); renderAll();
 }
 
 // ---------- 탭 ----------
@@ -967,31 +1143,55 @@ $('sheetBg').addEventListener('click', closeSheets);
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeSheets));
 
 // 기록 수정
-let xId = null, xCat = 'etc', xPay = 'cash';
+let xId = null, xCat = 'etc', xPay = null, xExtra = null, xChgCur = null, xOrigChg = null;
+const xPayObj = () => payOf(xPay) || xExtra;
 function openEdit(id, focusChange) {
   const e = S.expenses.find(x => x.id === id); if (!e) return;
-  xId = id; xCat = e.cat; xPay = payKeyOf(e);
+  xId = id; xCat = e.cat;
+  xExtra = { id: payKeyOf(e), method: e.method || '현금', cur: e.cur }; xPay = xExtra.id;
+  xChgCur = xOrigChg = e.chg?.cur || null;
   $('xDate').value = e.date; $('xAmt').value = e.amount; $('xMemo').value = e.memo || '';
-  $('xRKrw').value = e.rKrw; $('xRKhr').value = e.rKhr; $('xChg').value = num(e.khrChange) || '';
-  $('xCats').innerHTML = catButtons(xCat); $('xCur').innerHTML = payButtons(xPay); $('xSym').textContent = CURS[PAYS[xPay].cur].sym;
-  $('xChgWrap').classList.toggle('hidden', xPay !== 'cash');
-  updateEditPreview(); openSheet('editSheet');
-  if (focusChange && xPay === 'cash') setTimeout(() => $('xChg').focus(), 250);
+  $('xChg').value = num(e.chg?.amount) || '';
+  // 환율 칸: 기록에 저장된 환율 (일비 통화 제외)
+  const r = { ...snapRates(), ...(e.r || {}) };
+  $('xRates').innerHTML = Object.keys(r).filter(c => c !== BASE()).map(c =>
+    `<div><label>환율 (${unit1(BASE())} = ${sym(c)})</label><input data-xr="${c}" inputmode="decimal" value="${+(+r[c]).toFixed(4)}"></div>`).join('');
+  $('xCats').innerHTML = catButtons(xCat);
+  renderEditPay(); openSheet('editSheet');
+  if (focusChange && editChangeCurs(xPayObj()).length) setTimeout(() => $('xChg').focus(), 250);
 }
-const editForm = () => ({ date: $('xDate').value || today(), cat: xCat, cur: PAYS[xPay].cur, method: PAYS[xPay].method, amount: num($('xAmt').value),
-  memo: $('xMemo').value.trim(), khrChange: xPay === 'cash' ? num($('xChg').value) : 0, rKrw: num($('xRKrw').value) || curRates().krw, rKhr: num($('xRKhr').value) || curRates().khr });
-function updateEditPreview() { const c = conv(editForm()); $('xPrev').textContent = `= ${usd(c.usd)} · ${krw(c.krw)}`; }
-['xAmt', 'xRKrw', 'xRKhr', 'xChg'].forEach(id => $(id).addEventListener('input', updateEditPreview));
+// 거스름 통화 후보: 지금 현금 버튼 기준 + 기록에 원래 있던 거스름 통화 (그 버튼을 지웠어도 유지)
+const editChangeCurs = p => p?.method !== '현금' ? [] : uniq([...changeCursFor(p), ...(xOrigChg && xOrigChg !== p.cur ? [xOrigChg] : [])]);
+function renderEditPay() {
+  const p = xPayObj(), opts = editChangeCurs(p);
+  $('xCur').innerHTML = payButtons(xPay, xExtra); segCols($('xCur'), $('xCur').children.length);
+  $('xSym').textContent = sym(p.cur);
+  if (!opts.includes(xChgCur)) xChgCur = opts[0] || null;
+  $('xChgWrap').classList.toggle('hidden', !opts.length);
+  $('xChgCurs').innerHTML = opts.length > 1 ? curChips(opts, xChgCur) : '';
+  if (xChgCur) $('xChgSym').textContent = sym(xChgCur);
+  updateEditPreview();
+}
+function editForm() {
+  const p = xPayObj(), r = {};
+  document.querySelectorAll('[data-xr]').forEach(i => { if (num(i.value)) r[i.dataset.xr] = num(i.value); });
+  r[BASE()] = 1;
+  const f = { date: $('xDate').value || today(), cat: xCat, method: p.method, cur: p.cur, amount: num($('xAmt').value),
+    memo: $('xMemo').value.trim(), r: { ...snapRates(), ...r } };
+  if (editChangeCurs(p).length && num($('xChg').value)) f.chg = { cur: xChgCur, amount: num($('xChg').value) };
+  return f;
+}
+function updateEditPreview() { const f = editForm(), c = conv(f); $('xPrev').textContent = `= ${withKrw(c.b, c.krw)}`; }
+$('xAmt').addEventListener('input', updateEditPreview); $('xChg').addEventListener('input', updateEditPreview);
+$('xRates').addEventListener('input', updateEditPreview);
 $('xCats').addEventListener('click', ev => { const b = ev.target.closest('[data-cat]'); if (!b) return; xCat = b.dataset.cat; $('xCats').innerHTML = catButtons(xCat); });
-$('xCur').addEventListener('click', ev => {
-  const b = ev.target.closest('[data-pay]'); if (!b) return;
-  xPay = b.dataset.pay; $('xCur').innerHTML = payButtons(xPay); $('xSym').textContent = CURS[PAYS[xPay].cur].sym;
-  $('xChgWrap').classList.toggle('hidden', xPay !== 'cash'); updateEditPreview();
-});
+$('xCur').addEventListener('click', ev => { const b = ev.target.closest('[data-pay]'); if (!b) return; xPay = b.dataset.pay; renderEditPay(); });
+$('xChgCurs').addEventListener('click', ev => { const b = ev.target.closest('[data-cc]'); if (b) { xChgCur = b.dataset.cc; renderEditPay(); } });
 $('xSave').addEventListener('click', () => {
   const f = editForm(); if (!f.amount) { toast('금액을 입력하세요'); return; }
   const e = S.expenses.find(x => x.id === xId);
   if (e.split && (f.amount !== num(e.amount) || f.cur !== e.cur)) delete e.split;
+  if (!f.chg) delete e.chg;
   Object.assign(e, f);
   save(); closeSheets(); renderAll(); toast('수정했어요');
 });
@@ -1001,32 +1201,30 @@ $('xDelete').addEventListener('click', () => {
   save(); closeSheets(); renderAll(); toast('삭제했어요');
 });
 
-// 환율
-function rateModeDesc() {
-  const fix = $('rFixKhr').checked;
-  $('rModeDesc').textContent = ($('rAutoOn').checked
-    ? '켜짐: 매일 시장 환율을 받아서 계산해요. 인터넷이 안 되면 아래 내 환율을 써요.'
-    : '꺼짐: 아래 내 환율(미리 환전한 환율 등)로만 계산해요.') + (fix ? ' 리엘은 고정 환율을 써요.' : '');
-  $('rKhrWrap').classList.toggle('hidden', fix);
-  $('rFixWrap').classList.toggle('hidden', !fix);
-}
+// 환율: 통화마다 자동(매일 조회) / 📌 고정(직접 입력)
 function openRate() {
   const f = S.settings.fetched;
-  $('rAuto').textContent = f ? `${md(f.date)} 조회: ₩${fmtRate(f.krw)} · ${fmtRate(f.khr)}៛` : '아직 받지 못했어요';
-  $('rAutoOn').checked = !!S.settings.autoRate;
-  $('rKrw').value = S.settings.manualKrw ?? ''; $('rKhr').value = S.settings.manualKhr ?? '';
-  $('rFixKhr').checked = !!S.settings.fixKhr; $('rFixRate').value = S.settings.fixKhrRate ?? 4000;
-  rateModeDesc(); openSheet('rateSheet');
+  $('rAuto').textContent = f ? `자동 조회: ${md(f.date)} 기준` : '자동 환율을 아직 받지 못했어요 (임시 환율 사용 중)';
+  $('rList').innerHTML = rateCurs().map(c => {
+    const cfg = S.settings.rateCfg[c] || {};
+    return `<div class="raterow"><div><b>${unit1(BASE())} = ${sym(c)}</b> <span class="sub">${CURS[c]?.name || c}</span>
+        <div class="sub">자동 ${fmtRateCur(autoRate(c), c)}</div></div>
+      <input data-rv="${c}" inputmode="decimal" value="${cfg.value ?? ''}" placeholder="${fmtRate(autoRate(c))}">
+      <label class="switch" style="margin:0" title="고정"><input type="checkbox" data-rf="${c}" ${cfg.fixed ? 'checked' : ''}><span></span></label></div>`;
+  }).join('') + '<div class="sub" style="text-align:right;margin-top:4px">오른쪽 스위치 = 📌 고정</div>';
+  openSheet('rateSheet');
 }
-$('rAutoOn').addEventListener('change', rateModeDesc);
-$('rFixKhr').addEventListener('change', rateModeDesc);
+// 값을 입력하면 고정을 자동으로 켬
+$('rList').addEventListener('input', ev => { const c = ev.target.dataset.rv; if (c) document.querySelector(`[data-rf="${c}"]`).checked = !!num(ev.target.value); });
 $('rateChip').addEventListener('click', openRate);
 $('rSave').addEventListener('click', () => {
-  const auto = $('rAutoOn').checked, mk = num($('rKrw').value) || null, mh = num($('rKhr').value) || null;
-  if (!auto && !mk) { toast('자동 조회를 끄려면 원/달러 환율을 입력하세요'); $('rKrw').focus(); return; }
-  Object.assign(S.settings, { autoRate: auto, manualKrw: mk, manualKhr: mh,
-    fixKhr: $('rFixKhr').checked, fixKhrRate: num($('rFixRate').value) || 4000 });
-  save(); closeSheets(); renderAll(); fetchRates(); toast(auto ? '자동 환율을 사용해요' : '내 환율로 고정했어요');
+  const cfg = {};
+  for (const c of rateCurs()) {
+    const fixed = document.querySelector(`[data-rf="${c}"]`).checked, v = num(document.querySelector(`[data-rv="${c}"]`).value);
+    if (fixed || v) cfg[c] = { fixed, value: v || Math.round(autoRate(c) * 10000) / 10000 };
+  }
+  S.settings.rateCfg = cfg;
+  save(); closeSheets(); renderAll(); toast('환율을 저장했어요');
 });
 $('rRefresh').addEventListener('click', async () => { await fetchRates(true); openRate(); });
 
@@ -1039,11 +1237,12 @@ function download(name, text, type) {
 }
 function exportJson() { download(`출장경비_백업_${today()}.json`, JSON.stringify(S, null, 2), 'application/json'); }
 function exportCsv() {
-  const q = v => `"${String(v).replace(/"/g, '""')}"`;
-  const rows = [['날짜', '카테고리', '결제', '금액', '통화', '메모', '거스름리엘', '환율(원/$)', '환율(리엘/$)', '환산달러', '환산원화']];
+  const q = v => `"${String(v).replace(/"/g, '""')}"`, bn = CURS[BASE()]?.name || BASE();
+  const rows = [['날짜', '카테고리', '결제', '금액', '통화', '메모', '거스름', '거스름통화', `환율(원/${bn})`, `환산${bn}`, '환산원화']];
   for (const e of [...S.expenses].sort((a, b) => a.date.localeCompare(b.date) || a.createdAt - b.createdAt)) {
     const c = conv(e);
-    rows.push([e.date, catOf(e.cat).name, PAYS[payKeyOf(e)].method, num(e.amount), CURS[e.cur].name, e.memo || '', num(e.khrChange), e.rKrw, e.rKhr, c.usd.toFixed(2), Math.round(c.krw)]);
+    rows.push([e.date, catOf(e.cat).name, e.method || '현금', num(e.amount), CURS[e.cur]?.name || e.cur, e.memo || '',
+      num(e.chg?.amount), e.chg ? CURS[e.chg.cur]?.name || e.chg.cur : '', e.r?.KRW ?? '', c.b.toFixed(CURS[BASE()]?.dec ?? 2), Math.round(c.krw)]);
   }
   download(`출장경비_${today()}.csv`, '﻿' + rows.map(r => r.map(q).join(',')).join('\r\n'), 'text/csv');
 }
@@ -1063,17 +1262,17 @@ function importJson(ev) {
 }
 function resetAll() {
   if (!confirm('모든 기록과 설정을 지울까요? 되돌릴 수 없어요.')) return;
-  S = defaults(); save(); renderAll(); toast('초기화했어요');
+  S = upgradeCats(defaults()); save(); renderAll(); toast('초기화했어요');
 }
 
 let toastT;
 function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.classList.add('show');
-  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1600);
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1800);
 }
 
 // ---------- 시작 ----------
-save(); // v1 데이터가 있으면 v2로 저장
+save(); // 예전 형식(v1/v2) 데이터가 있으면 v3로 저장
 showTab(S.settings.start ? 'entry' : 'settings');
 fetchRates();
 // 자정이 지나거나 앱으로 돌아왔을 때 날짜/환율 갱신
