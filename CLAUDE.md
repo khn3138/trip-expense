@@ -30,6 +30,8 @@
   },
   expenses: [{ id, createdAt, date, cat, method, cur, amount, memo, rKrw, rKhr, khrChange }],
   // khrChange: 현금 $ 결제 시 거스름으로 받은 리엘 (사용액에서 빼고 리엘 지갑에 더함)
+  // split: { total, n } — n빵 계산기로 계산한 금액 그대로 저장했을 때만 (수정에서 금액·통화가 바뀌면 삭제)
+  // settings.lastSplitN: 마지막 n빵 인원
   moves: [{ id, createdAt, date, type, from, amount, to, amount2, set, memo }]
   // 지갑 이동. type 'in'(넣기: to, amount) | 'xfer'(바꾸기: from, amount → to, amount2) | 'adjust'(보정: to, amount=차이, set=센 금액)
   // 지갑 키: cash(현금 $) / riel(현금 ៛) / card(카드 $). 입금 ₩은 지갑 추적 안 함

@@ -115,6 +115,20 @@ td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
 .toast{position:fixed;left:50%;bottom:40px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .2s;z-index:20;pointer-events:none}
 .toast.show{opacity:.92}
 .linkbtn{border:0;background:none;color:var(--accent);font-size:14px;font-weight:600;padding:8px 2px 0}
+.linkrow{display:flex;gap:16px;flex-wrap:wrap}
+.split{margin-top:8px;padding:12px;border-radius:12px;background:var(--chip)}
+.split .head{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:14px}
+.split .head button{border:0;background:none;color:var(--sub);font-size:18px;padding:0 4px}
+.split .grid{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin-top:6px}
+.split label{margin:0 0 4px}
+.split input{background:var(--card)}
+.stepper{display:flex;align-items:center;border:1px solid var(--line);border-radius:10px;background:var(--card);overflow:hidden}
+.stepper button{border:0;background:none;color:var(--text);font-size:22px;width:40px;height:44px}
+.stepper b{min-width:34px;text-align:center;font-size:17px;font-variant-numeric:tabular-nums}
+.units{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.units button{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:14px;padding:5px 10px;font-size:13px}
+.units button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.split .res{margin-top:8px;font-size:14px;font-variant-numeric:tabular-nums}
 .amount.small input{font-size:20px;padding:9px 40px 9px 12px}
 .amount.small span{font-size:18px}
 .walline{display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 10px;font-size:13px;font-variant-numeric:tabular-nums}
@@ -154,7 +168,19 @@ td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
       <div class="cats" id="eCats"></div>
       <div class="amount"><input id="eAmt" inputmode="decimal" placeholder="0" autocomplete="off"><span id="eSym">$</span></div>
       <div class="seg" id="eCur"></div>
-      <button type="button" class="linkbtn" id="eChgToggle">+ 거스름 리엘 받음</button>
+      <div class="linkrow">
+        <button type="button" class="linkbtn" id="eSplitToggle">÷ n빵 계산</button>
+        <button type="button" class="linkbtn" id="eChgToggle">+ 거스름 리엘 받음</button>
+      </div>
+      <div class="split hidden" id="eSplit">
+        <div class="head"><span>÷ n빵 계산</span><button type="button" id="eSplitClose" aria-label="닫기">✕</button></div>
+        <div class="grid">
+          <div><label>총액</label><div class="amount small"><input id="eSplitTotal" inputmode="decimal" placeholder="0" autocomplete="off"><span id="eSplitSym">₩</span></div></div>
+          <div><label>인원 (나 포함)</label><div class="stepper"><button type="button" data-step="-1">−</button><b id="eSplitN">2</b><button type="button" data-step="1">+</button></div></div>
+        </div>
+        <div class="units" id="eSplitUnits"></div>
+        <div class="res" id="eSplitRes"></div>
+      </div>
       <div class="amount small hidden" id="eChgWrap" style="margin-top:6px"><input id="eChg" inputmode="numeric" placeholder="거스름으로 받은 리엘" autocomplete="off"><span>៛</span></div>
       <div class="preview" id="ePrev"></div>
       <input class="memo" id="eMemo" maxlength="60" placeholder="메모 (선택)" autocomplete="off">
@@ -262,7 +288,7 @@ td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v0.2.2';
+const APP_VERSION = 'v0.3.0';
 const KEY = 'tripExpense.v2', OLD_KEY = 'tripExpense.v1';
 const RATE_API = 'https://open.er-api.com/v6/latest/USD';
 const CURS = { USD: { name: '달러', sym: '$' }, KHR: { name: '리엘', sym: '៛' }, KRW: { name: '원', sym: '₩' } };
@@ -448,7 +474,8 @@ const payButtons = sel => Object.entries(PAYS).map(([k, v]) =>
 function itemHtml(e) {
   const c = conv(e), cat = catOf(e.cat), p = PAYS[payKeyOf(e)];
   const pay = p.label.split(' ')[0] + (e.cur !== 'USD' || num(e.khrChange) ? ' ' + fmtCur(num(e.amount), e.cur) : '')
-    + (num(e.khrChange) ? ` (거스름 ${khr(num(e.khrChange))})` : '');
+    + (num(e.khrChange) ? ` (거스름 ${khr(num(e.khrChange))})` : '')
+    + (e.split ? ` (n빵 ${fmtCur(num(e.split.total), e.cur)}÷${e.split.n})` : '');
   const sub = [pay, e.memo].filter(Boolean).join(' · ');
   return `<div class="item" data-id="${esc(e.id)}"><span class="ic">${esc(cat.icon)}</span>
     <div class="mid"><div class="name">${esc(cat.name)}</div>${sub ? `<div class="m">${esc(sub)}</div>` : ''}</div>
@@ -485,7 +512,7 @@ function renderEntry() {
   $('eCats').innerHTML = catButtons(eCat);
   $('eCur').innerHTML = payButtons(ePay);
   $('eSym').textContent = CURS[PAYS[ePay].cur].sym;
-  updateChgUi();
+  updateChgUi(); updateSplitUi();
   updateEntryPreview();
   // 지갑 잔액 한 줄 (지갑을 쓰기 시작한 경우만)
   const b = balances();
@@ -514,6 +541,45 @@ function updateChgUi() {
 }
 $('eChgToggle').addEventListener('click', () => { eChgOpen = true; updateChgUi(); $('eChg').focus(); });
 $('walLine').addEventListener('click', ev => { if (ev.target.closest('[data-go]')) showTab('wallet'); });
+
+// n빵 계산기: 총액 ÷ 인원을 올림 단위로 올려서 금액 칸에 넣음 (내 몫을 모자라지 않게)
+const SPLIT_UNITS = { KRW: [1, 100, 1000], USD: [0.01, 0.5, 1], KHR: [100, 500, 1000] };
+let eSplitOpen = false, eSplitN = 2, eSplitUnit = {};
+const unitLabel = (u, cur) => cur === 'KRW' ? (u === 1 ? '1원' : `${u.toLocaleString()}원 올림`)
+  : cur === 'USD' ? (u === 0.01 ? '센트까지' : `$${u} 올림`) : `${u.toLocaleString()}៛ 올림`;
+function splitShare() {
+  const cur = PAYS[ePay].cur, total = num($('eSplitTotal').value), u = eSplitUnit[cur] ?? SPLIT_UNITS[cur][0];
+  if (!total || eSplitN < 1) return 0;
+  return Math.round(Math.ceil(total / eSplitN / u - 1e-9) * u * 100) / 100;
+}
+function updateSplitUi() {
+  $('eSplitToggle').classList.toggle('hidden', eSplitOpen);
+  $('eSplit').classList.toggle('hidden', !eSplitOpen);
+  if (!eSplitOpen) return;
+  const cur = PAYS[ePay].cur, sel = eSplitUnit[cur] ?? SPLIT_UNITS[cur][0];
+  $('eSplitSym').textContent = CURS[cur].sym;
+  $('eSplitN').textContent = eSplitN;
+  $('eSplitUnits').innerHTML = SPLIT_UNITS[cur].map(u => `<button type="button" class="${u === sel ? 'on' : ''}" data-u="${u}">${unitLabel(u, cur)}</button>`).join('');
+  const total = num($('eSplitTotal').value), share = splitShare();
+  $('eSplitRes').innerHTML = share ? `${fmtCur(total, cur)} ÷ ${eSplitN}명 = <b>내 몫 ${fmtCur(share, cur)}</b> (금액 칸에 넣었어요)` : '<span class="sub">총액을 넣으면 내 몫이 금액 칸에 들어가요</span>';
+}
+function applySplit() {
+  const share = splitShare();
+  if (share) $('eAmt').value = String(share);
+  updateSplitUi(); updateEntryPreview();
+}
+$('eSplitToggle').addEventListener('click', () => {
+  eSplitOpen = true; eSplitN = num(S.settings.lastSplitN) || 2;
+  updateSplitUi(); $('eSplitTotal').focus();
+});
+$('eSplitClose').addEventListener('click', () => { eSplitOpen = false; $('eSplitTotal').value = ''; updateSplitUi(); });
+$('eSplitTotal').addEventListener('input', applySplit);
+$('eSplit').addEventListener('click', ev => {
+  const st = ev.target.closest('[data-step]');
+  if (st) { eSplitN = Math.max(1, Math.min(30, eSplitN + Number(st.dataset.step))); return applySplit(); }
+  const u = ev.target.closest('[data-u]');
+  if (u) { eSplitUnit[PAYS[ePay].cur] = Number(u.dataset.u); applySplit(); }
+});
 $('eDate').addEventListener('change', ev => { eDate = ev.target.value || today(); eDateAuto = eDate === today(); renderEntry(); });
 $('eCats').addEventListener('click', ev => {
   const b = ev.target.closest('[data-cat]'); if (!b) return;
@@ -521,8 +587,11 @@ $('eCats').addEventListener('click', ev => {
 });
 $('eCur').addEventListener('click', ev => {
   const b = ev.target.closest('[data-pay]'); if (!b) return;
+  const prevCur = PAYS[ePay].cur;
   ePay = b.dataset.pay; $('eCur').innerHTML = payButtons(ePay); $('eSym').textContent = CURS[PAYS[ePay].cur].sym;
-  updateChgUi(); updateEntryPreview();
+  // n빵 중에 통화가 바뀌면 총액 단위가 달라지므로 비움 ($25가 25៛로 계산되지 않게)
+  if (eSplitOpen && prevCur !== PAYS[ePay].cur && $('eSplitTotal').value) { $('eSplitTotal').value = ''; $('eAmt').value = ''; toast('통화가 바뀌어 n빵 총액을 비웠어요'); }
+  updateChgUi(); eSplitOpen ? applySplit() : updateEntryPreview();
 });
 $('eSave').addEventListener('click', () => {
   const amount = num($('eAmt').value);
@@ -531,6 +600,8 @@ $('eSave').addEventListener('click', () => {
   const rec = { id: newId(), createdAt: Date.now(), date: eDate, cat: eCat || 'etc',
     cur: PAYS[ePay].cur, method: PAYS[ePay].method, amount, memo: $('eMemo').value.trim(), rKrw: r.krw, rKhr: r.khr,
     khrChange: ePay === 'cash' ? num($('eChg').value) : 0 };
+  // n빵으로 계산한 금액 그대로면 총액·인원을 같이 저장 (기록에 '₩34,000÷3' 표시)
+  if (eSplitOpen && num($('eSplitTotal').value) && amount === splitShare()) rec.split = { total: num($('eSplitTotal').value), n: eSplitN };
   // 지갑을 쓰는 중인데 이 지출로 잔액이 마이너스가 되면 먼저 알림 (빠진 거스름/넣기 기록 확인)
   if (S.moves.length && ePay in WALLETS) {
     const bal = balances()[ePay];
@@ -540,8 +611,10 @@ $('eSave').addEventListener('click', () => {
 });
 function commitEntry(rec) {
   S.expenses.push(rec);
+  if (rec.split) S.settings.lastSplitN = rec.split.n;
   save();
   $('eAmt').value = ''; $('eMemo').value = ''; $('eChg').value = ''; eChgOpen = false; eCat = null; ePay = 'cash';
+  $('eSplitTotal').value = ''; eSplitOpen = false;
   document.activeElement?.blur();
   navigator.vibrate?.(15);
   renderAll(); toast(`${md(eDate)}에 저장했어요`);
@@ -917,7 +990,9 @@ $('xCur').addEventListener('click', ev => {
 });
 $('xSave').addEventListener('click', () => {
   const f = editForm(); if (!f.amount) { toast('금액을 입력하세요'); return; }
-  Object.assign(S.expenses.find(x => x.id === xId), f);
+  const e = S.expenses.find(x => x.id === xId);
+  if (e.split && (f.amount !== num(e.amount) || f.cur !== e.cur)) delete e.split;
+  Object.assign(e, f);
   save(); closeSheets(); renderAll(); toast('수정했어요');
 });
 $('xDelete').addEventListener('click', () => {
