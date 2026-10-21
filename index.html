@@ -322,10 +322,11 @@ h1{min-width:0}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v0.5.1';
+const APP_VERSION = 'v0.6.0';
 const APP_NAME = '해외지갑';
 const DB_KEY = 'tripExpense.v4', OLD_KEYS = ['tripExpense.v3', 'tripExpense.v2', 'tripExpense.v1'];
 const RATE_API = 'https://open.er-api.com/v6/latest/USD';
+const HIST_API = 'https://api.frankfurter.dev/v2/rates';   // 날짜별 환율 (무료, 키 불필요, 주말 포함)
 
 // 통화: sym 기호, post 기호를 뒤에 붙임, dec 소수 자리, units n빵 올림 단위, usd 1달러당 대략 환율(자동 조회 전 임시값)
 const CURS = {
@@ -554,6 +555,54 @@ function conv(e) {
 }
 
 const catOf = id => S.settings.categories.find(c => c.id === id) || { id, icon: '📦', name: '기타' };
+
+// ---------- 환율 정산 (출장) ----------
+// 회사는 일비를 지급 환율로 먼저 주고, 나중에 정산 환율로 다시 계산해서 차액을 추가 지급(+) 또는 페이백(−)
+// 정산 환율: 'daily' 날마다 기준환율(자동 조회) | 'month' 회사가 알려준 월별 환율(직접 입력)
+const settleCfg = () => S.settings.settle || (S.settings.settle = { mode: 'daily', monthRates: {} });
+const addDay = (d, n) => { const x = parse(d); x.setDate(x.getDate() + n); return ymd(x); };
+// 그날의 '일비 통화 → 원' 기준환율. 없으면 가장 가까운 이전 날 (그것도 없으면 0 = 아직 모름)
+function histRate(day) {
+  const h = DB.hist?.[BASE()]; if (!h) return 0;
+  if (h[day]) return h[day];
+  let best = 0;
+  for (const k of Object.keys(h).sort()) { if (k <= day) best = h[k]; else break; }
+  return best;
+}
+// 월별 정산: 지난 날(경과일)만. paid = 지급 환율로 받은 원화, settle = 정산 환율로 다시 계산한 원화
+function settleRows() {
+  const cfg = settleCfg(), daily = num(S.settings.daily);
+  return months().filter(m => m.elapsed > 0).map(m => {
+    const days = m.elapsed, paid = days * daily * m.rate;
+    let settle = 0, missing = 0;
+    if (cfg.mode === 'month') { const r = num(cfg.monthRates[m.ym]); if (r) settle = days * daily * r; else missing = days; }
+    else for (let i = 0; i < days; i++) { const r = histRate(addDay(m.from, i)); if (r) settle += daily * r; else missing++; }
+    return { ...m, days, paid, settle, missing, avg: missing || !daily ? 0 : settle / (days * daily), diff: missing ? 0 : settle - paid };
+  });
+}
+// 날짜별 환율 받기: 출장 시작일 ~ 오늘(종료일) 중 없는 날만, 같은 범위는 하루 한 번만 시도
+async function fetchHist(force) {
+  const st = S.settings, base = BASE();
+  if (!isBiz() || base === 'KRW' || !st.start || !st.end || settleCfg().mode !== 'daily') return;
+  const last = minD(today(), st.end); if (last < st.start) return;
+  DB.hist ||= {}; DB.histTry ||= {};
+  const h = DB.hist[base] || {};
+  let first = null;
+  for (let d = st.start; d <= last; d = addDay(d, 1)) if (!h[d]) { first = d; break; }
+  if (!first) return;
+  const key = `${today()}|${first}|${last}`;
+  if (!force && DB.histTry[base] === key) return;
+  DB.histTry[base] = key;
+  try {
+    const r = await fetch(`${HIST_API}?from=${first}&to=${last}&base=${base}&quotes=KRW`, { cache: 'no-store' });
+    const j = await r.json();
+    if (!Array.isArray(j)) throw 0;
+    DB.hist[base] = { ...h };
+    for (const x of j) if (x.quote === 'KRW' && num(x.rate)) DB.hist[base][x.date] = num(x.rate);
+    save(); renderAll();
+    if (force) toast('정산 환율을 받았어요');
+  } catch (e) { save(); if (force) toast('정산 환율을 가져오지 못했어요 (인터넷 확인)'); }
+}
 
 // ---------- 일비 계산 ----------
 // 회사는 매월 1일(첫 달은 출장 시작일)에 그 달 출장일수만큼 선지급
@@ -977,6 +1026,7 @@ $('adjSave').addEventListener('click', () => {
 
 // ---------- 요약 ----------
 function renderSummary() {
+  fetchHist();
   const el = $('tab-summary'), st = stats();
   if (!st.ms.length) {
     el.innerHTML = `<div class="card"><h2>시작하기</h2><p>먼저 <b>설정</b> 탭에서 ${KIND()} 기간과 하루 ${W()} 금액을 입력하세요.</p>
@@ -1018,6 +1068,8 @@ function renderSummary() {
     ${remainRow}
   </div>` : ''}
 
+  ${settleCard()}
+
   ${cats.length ? `<div class="card"><h2>카테고리별</h2>
     ${cats.map(([id, v]) => { const c = catOf(id); return `<div class="row"><span class="k" style="flex:1">${esc(c.icon)} ${esc(c.name)}
       <div class="bar" style="width:${Math.max(4, v / maxCat * 100)}%"></div></span><span class="v">${fb(v)}<br><span class="sub">${st.sB ? Math.round(v / st.sB * 100) : 0}%</span></span></div>`; }).join('')}
@@ -1037,6 +1089,47 @@ function renderSummary() {
     <div class="row"><span class="k">예상 결과</span><span class="v ${st.tot - proj >= 0 ? 'good' : 'bad'}">${st.tot - proj >= 0 ? fb(st.tot - proj) + ' 남음' : fb(proj - st.tot) + ' 초과'}</span></div>
   </div>`;
 }
+
+function settleCard() {
+  if (!isBiz() || BASE() === 'KRW') return '';
+  const cfg = settleCfg(), rows = settleRows(), bs = sym(BASE()), daily = num(S.settings.daily);
+  const modeBtns = `<div class="seg" style="grid-template-columns:1fr 1fr;margin:0 0 8px">
+    <button type="button" data-settle="daily" class="${cfg.mode === 'daily' ? 'on' : ''}">날마다 기준환율</button>
+    <button type="button" data-settle="month" class="${cfg.mode === 'month' ? 'on' : ''}">월별 직접 입력</button></div>`;
+  const head = `<div class="card"><h2>환율 정산 (예상)</h2>${modeBtns}`;
+  if (!rows.length || !daily) return head + `<div class="sub">${!daily ? '하루 일비를 입력하면' : '출장이 시작되면'} 계산해요.</div></div>`;
+  const done = rows.filter(r => !r.missing), tot = done.reduce((a, r) => a + r.diff, 0);
+  const paidK = done.reduce((a, r) => a + r.paid, 0), pending = rows.some(r => r.missing);
+  const signed = v => `<span class="${v >= 0 ? 'good' : 'bad'}">${v >= 0 ? '+' : ''}${krw(v)}</span>`;
+  return head + `<table>
+    <tr><th>월</th><th>일수</th><th>지급 환율</th><th>정산 환율</th><th>차이</th></tr>
+    ${rows.map(r => `<tr>
+      <td>${+r.ym.slice(5)}월<div class="sub">${md(r.from)}~</div></td><td>${r.days}</td><td>${fmtRate(r.rate)}</td>
+      <td>${cfg.mode === 'month'
+        ? `<input data-srate="${r.ym}" inputmode="decimal" value="${cfg.monthRates[r.ym] ?? ''}" placeholder="입력">`
+        : r.missing ? '<span class="sub">받는 중</span>' : fmtRate(Math.round(r.avg * 100) / 100)}</td>
+      <td>${r.missing ? '-' : signed(r.diff)}</td></tr>`).join('')}
+  </table>
+  ${done.length ? `<div class="row" style="margin-top:6px"><span class="k">받은 일비 (지급 환율)</span><span class="v">${krw(paidK)}</span></div>
+  <div class="row"><span class="k">정산하면</span><span class="v">${krw(paidK + tot)}</span></div>
+  <div class="verdict ${tot >= 0 ? 'good' : 'bad'}">${tot >= 0 ? `회사에서 ${krw(tot)} 더 받아요 (추가 지급)` : `회사에 ${krw(-tot)} 돌려줘요 (페이백)`}</div>` : ''}
+  <div class="sub" style="margin-top:8px">오늘까지 지난 ${rows.reduce((a, r) => a + r.days, 0)}일 기준 (${bs}${daily.toLocaleString()} × 날짜별 환율).
+    ${cfg.mode === 'daily'
+      ? `날마다 기준환율은 공개 환율(frankfurter)이라 회사 환율(은행 매매기준율 등)과 조금 다를 수 있어요. 회사가 정산 환율을 알려주면 '월별 직접 입력'으로 넣으세요.${pending ? '' : ' <button type="button" class="linkbtn" data-hist-refresh style="padding:0">환율 다시 받기</button>'}`
+      : `회사가 알려준 월별 정산 환율(₩/${bs})을 넣으세요.${pending ? ' 비어 있는 달은 빼고 계산해요.' : ''}`}</div>
+  </div>`;
+}
+$('tab-summary').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-settle]');
+  if (b) { settleCfg().mode = b.dataset.settle; save(); renderAll(); return; }
+  if (ev.target.closest('[data-hist-refresh]')) { (DB.hist ||= {})[BASE()] = {}; fetchHist(true); }
+});
+$('tab-summary').addEventListener('change', ev => {
+  const ym = ev.target.dataset?.srate; if (!ym) return;
+  const v = num(ev.target.value), cfg = settleCfg();
+  if (v) cfg.monthRates[ym] = v; else delete cfg.monthRates[ym];
+  save(); renderAll();
+});
 
 // ---------- 설정 ----------
 const curOptions = sel => Object.entries(CURS).map(([k, c]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${c.sym} ${c.name} (${k})</option>`).join('');
@@ -1336,8 +1429,8 @@ function importJson(ev) {
 }
 function resetAll() {
   if (!confirm('모든 출장·여행의 기록과 설정을 지울까요? 되돌릴 수 없어요.')) return;
-  const fetched = DB.fetched;
-  DB = wrapSingle(defaults()); DB.fetched = fetched; S = DB.trips[0];
+  const { fetched, hist } = DB;
+  DB = wrapSingle(defaults()); Object.assign(DB, { fetched, hist }); S = DB.trips[0];
   resetEntry(); save(); showTab('settings'); toast('초기화했어요');
 }
 

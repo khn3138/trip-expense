@@ -8,6 +8,7 @@
 - 순수 HTML/CSS/JS 단일 파일(`index.html`), 빌드 도구·프레임워크·외부 라이브러리 없음
 - 저장: `localStorage` 키 `tripExpense.v4` = 여러 출장 DB (서버 없음). 예전 단일 출장 키 `v3`·`v2`·`v1`은 `migrate()`(v1→v2→v3) 후 `wrapSingle()`로 첫 번째 출장이 됨
 - 환율: `https://open.er-api.com/v6/latest/USD` (무료, 키 불필요, CORS 허용) — 하루 1회 조회, `CURS`에 있는 통화만 저장
+- 날짜별 환율(정산용): `https://api.frankfurter.dev/v2/rates?from=&to=&base=&quotes=KRW` (무료, CORS 허용, 주말 포함, `CURS` 13개 통화 모두 지원). v1은 deprecated
 - PWA: `manifest.webmanifest`, `sw.js`(같은 출처 파일만 네트워크 우선 + 캐시 폴백)
 - 배포: GitHub Pages (정적 파일 그대로)
 
@@ -28,7 +29,9 @@ DB = {
   version: 4,
   cur,                          // 지금 보고 있는 출장 id
   trips: [출장],                // 아래 '출장' 구조 + id
-  fetched: { date, updated, rates: { 통화: 1달러당 } }   // 자동 환율 (모든 출장 공통)
+  fetched: { date, updated, rates: { 통화: 1달러당 } },  // 자동 환율 (모든 출장 공통)
+  hist: { 일비통화: { 'YYYY-MM-DD': 원 } },              // 정산용 날짜별 환율 (모든 출장 공통)
+  histTry: { 일비통화: '오늘|시작|끝' }                  // 같은 범위는 하루 한 번만 조회
 }
 ```
 
@@ -48,7 +51,8 @@ DB = {
     rateCfg: { KHR: { fixed: true, value: 4000 } },  // 통화별 📌 고정 환율 (일비 통화 1단위당)
     categories: [{ id, icon, name }],
     catVer,                     // 기본 카테고리 버전 (upgradeCats()에서 새 기본 카테고리를 한 번만 추가)
-    lastSplitN                  // 마지막 n빵 인원
+    lastSplitN,                 // 마지막 n빵 인원
+    settle: { mode, monthRates }  // 환율 정산: mode 'daily'(날짜별 기준환율) | 'month'(월별 직접 입력, { 'YYYY-MM': 원 })
   },
   expenses: [{ id, createdAt, date, cat, method, cur, amount, memo, r, chg, split }],
   // method: '현금' | '카드' | '입금', cur: CURS 키
