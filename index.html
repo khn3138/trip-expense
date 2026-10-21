@@ -247,10 +247,22 @@ td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
   <button class="btn ghost" data-close>닫기</button>
 </div>
 
+<!-- 지갑 잔액 부족 알림 -->
+<div class="sheet" id="lowSheet">
+  <h3 id="lowTitle"></h3>
+  <div class="sub" id="lowDesc"></div>
+  <div id="lowList" style="margin-top:10px"></div>
+  <button class="btn" id="lowSave">그래도 저장</button>
+  <div class="btns">
+    <button class="btn ghost" id="lowWallet">지갑 맞추기</button>
+    <button class="btn ghost" data-close>취소</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v0.2.1';
+const APP_VERSION = 'v0.2.2';
 const KEY = 'tripExpense.v2', OLD_KEY = 'tripExpense.v1';
 const RATE_API = 'https://open.er-api.com/v6/latest/USD';
 const CURS = { USD: { name: '달러', sym: '$' }, KHR: { name: '리엘', sym: '៛' }, KRW: { name: '원', sym: '₩' } };
@@ -516,15 +528,24 @@ $('eSave').addEventListener('click', () => {
   const amount = num($('eAmt').value);
   if (!amount) { toast('금액을 입력하세요'); $('eAmt').focus(); return; }
   const r = curRates();
-  S.expenses.push({ id: newId(), createdAt: Date.now(), date: eDate, cat: eCat || 'etc',
+  const rec = { id: newId(), createdAt: Date.now(), date: eDate, cat: eCat || 'etc',
     cur: PAYS[ePay].cur, method: PAYS[ePay].method, amount, memo: $('eMemo').value.trim(), rKrw: r.krw, rKhr: r.khr,
-    khrChange: ePay === 'cash' ? num($('eChg').value) : 0 });
+    khrChange: ePay === 'cash' ? num($('eChg').value) : 0 };
+  // 지갑을 쓰는 중인데 이 지출로 잔액이 마이너스가 되면 먼저 알림 (빠진 거스름/넣기 기록 확인)
+  if (S.moves.length && ePay in WALLETS) {
+    const bal = balances()[ePay];
+    if (bal - amount < -0.005) { openLow(ePay, bal, rec); return; }
+  }
+  commitEntry(rec);
+});
+function commitEntry(rec) {
+  S.expenses.push(rec);
   save();
   $('eAmt').value = ''; $('eMemo').value = ''; $('eChg').value = ''; eChgOpen = false; eCat = null; ePay = 'cash';
   document.activeElement?.blur();
   navigator.vibrate?.(15);
   renderAll(); toast(`${md(eDate)}에 저장했어요`);
-});
+}
 $('eDayList').addEventListener('click', ev => { const it = ev.target.closest('[data-id]'); if (it) openEdit(it.dataset.id); });
 
 // ---------- 내역 ----------
@@ -575,6 +596,7 @@ function renderWallet() {
     <button class="btn ghost" data-act="xfer">⇄ 바꾸기</button>
     <button class="btn ghost" data-act="adjust">✓ 맞추기</button>
   </div>
+  ${S.moves.length ? lowNotice(b) : ''}
   ${!S.moves.length ? `<div class="card"><h2>시작하기</h2>
     지금 가진 현금(달러·리엘)과 카드 잔액을 세어서 <b>✓ 맞추기</b>로 넣으세요. 그 뒤로는 지출을 저장할 때마다 지갑에서 자동으로 빠져요.
     <div class="sub" style="margin-top:8px">· <b>넣기</b>: 환전, ATM 인출, 카드 충전<br>· <b>바꾸기</b>: 달러→리엘 환전 등 (지출 아님)<br>· <b>맞추기</b>: 실제로 센 금액과 다를 때 보정 (지출 아님)</div></div>`
@@ -596,6 +618,7 @@ function moveHtml(m) {
     <div class="amt"><b>${amt}</b></div></div>`;
 }
 $('tab-wallet').addEventListener('click', ev => {
+  const ex = ev.target.closest('[data-id]'); if (ex) return openEdit(ex.dataset.id, true);
   const a = ev.target.closest('[data-act]');
   if (a) return a.dataset.act === 'adjust' ? openAdjust() : openMove(a.dataset.act);
   const it = ev.target.closest('[data-move]'); if (!it) return;
@@ -605,6 +628,38 @@ $('tab-wallet').addEventListener('click', ev => {
     S.moves = S.moves.filter(x => x.id !== m.id); save(); renderAll(); toast('삭제했어요');
   } else openMove(m.type, m.id);
 });
+
+// ---------- 잔액 부족 ----------
+// 거스름 리엘이 비어 있는 최근 '현금 $' 기록 (리엘이 모자랄 때 빠진 거스름 후보)
+const changeCandidates = () => S.expenses.filter(e => payKeyOf(e) === 'cash' && !num(e.khrChange))
+  .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt).slice(0, 5);
+const lowHint = k => k === 'riel'
+  ? (changeCandidates().length
+    ? '달러로 내고 리엘로 거스름을 받은 기록이 빠졌을 수 있어요. 아래 기록을 눌러 거스름 리엘을 추가하세요.'
+    : '빠진 리엘이 있을 수 있어요 (거스름, 환전 등). 지갑의 리엘을 세어서 맞추기로 맞추세요.')
+  : '환전·ATM·카드 충전한 기록이 빠졌을 수 있어요. 지갑 탭에서 넣기로 추가하거나 실제 금액으로 맞추세요.';
+const candidateList = () => { const c = changeCandidates();
+  return c.length ? `<div class="sub" style="margin-bottom:6px">거스름이 비어 있는 최근 현금 $ 기록</div><div class="items">${c.map(itemHtml).join('')}</div>` : ''; };
+function lowNotice(b) {
+  const neg = Object.keys(WALLETS).filter(k => b[k] < -0.005);
+  if (!neg.length) return '';
+  return `<div class="card" style="border-color:var(--bad)"><h2 class="bad">⚠️ ${neg.map(k => WALLETS[k].label).join(', ')} 잔액이 마이너스예요</h2>
+    <div class="sub">${lowHint(neg.includes('riel') ? 'riel' : neg[0])}</div>
+    ${neg.includes('riel') ? `<div style="margin-top:10px">${candidateList()}</div>` : ''}</div>`;
+}
+let lowRec = null;
+function openLow(k, bal, rec) {
+  lowRec = rec;
+  const w = WALLETS[k];
+  $('lowTitle').textContent = `${w.label} 잔액이 부족해요`;
+  $('lowDesc').innerHTML = `지갑 ${fmtCur(bal, w.cur)}, 이번 지출 ${fmtCur(rec.amount, w.cur)} → 저장하면 <b class="bad">${fmtCur(bal - rec.amount, w.cur)}</b><br>${lowHint(k)}`;
+  $('lowList').innerHTML = k === 'riel' ? candidateList() : '';
+  openSheet('lowSheet');
+}
+$('lowSave').addEventListener('click', () => { closeSheets(); if (lowRec) commitEntry(lowRec); lowRec = null; });
+$('lowWallet').addEventListener('click', () => { closeSheets(); showTab('wallet'); openAdjust(); });
+// 후보 기록을 누르면 수정 창을 열고 거스름 칸에 바로 입력 (입력 중인 금액은 그대로 남아 있음)
+$('lowList').addEventListener('click', ev => { const it = ev.target.closest('[data-id]'); if (!it) return; closeSheets(); openEdit(it.dataset.id, true); });
 
 // 넣기 / 바꾸기 시트
 let mType = 'in', mId = null, mFrom = 'cash', mTo = 'riel';
@@ -840,7 +895,7 @@ document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click
 
 // 기록 수정
 let xId = null, xCat = 'etc', xPay = 'cash';
-function openEdit(id) {
+function openEdit(id, focusChange) {
   const e = S.expenses.find(x => x.id === id); if (!e) return;
   xId = id; xCat = e.cat; xPay = payKeyOf(e);
   $('xDate').value = e.date; $('xAmt').value = e.amount; $('xMemo').value = e.memo || '';
@@ -848,6 +903,7 @@ function openEdit(id) {
   $('xCats').innerHTML = catButtons(xCat); $('xCur').innerHTML = payButtons(xPay); $('xSym').textContent = CURS[PAYS[xPay].cur].sym;
   $('xChgWrap').classList.toggle('hidden', xPay !== 'cash');
   updateEditPreview(); openSheet('editSheet');
+  if (focusChange && xPay === 'cash') setTimeout(() => $('xChg').focus(), 250);
 }
 const editForm = () => ({ date: $('xDate').value || today(), cat: xCat, cur: PAYS[xPay].cur, method: PAYS[xPay].method, amount: num($('xAmt').value),
   memo: $('xMemo').value.trim(), khrChange: xPay === 'cash' ? num($('xChg').value) : 0, rKrw: num($('xRKrw').value) || curRates().krw, rKhr: num($('xRKhr').value) || curRates().khr });
