@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="출장경비">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>출장 경비</title>
+<style>
+:root{
+  --bg:#f4f6f8;--card:#fff;--text:#1f2933;--sub:#6b7785;--line:#e3e8ee;
+  --accent:#0f766e;--on-accent:#fff;--accent-soft:#e6f4f2;--good:#15803d;--bad:#c2410c;--chip:#eef1f4;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0f1418;--card:#182027;--text:#e6ebef;--sub:#93a1ae;--line:#26313a;
+    --accent:#2dd4bf;--on-accent:#062a26;--accent-soft:#12302d;--good:#4ade80;--bad:#fb923c;--chip:#222c34;}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;font-size:15px}
+button{font-family:inherit;cursor:pointer}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(env(safe-area-inset-top) + 8px) 16px 0}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;max-width:640px;margin:0 auto 6px}
+h1{font-size:17px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ratechip{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:16px;padding:6px 10px;font-size:12.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.ratechip b{color:var(--accent)}
+.tabs{display:flex;border-bottom:1px solid var(--line);max-width:640px;margin:0 auto}
+.tabs button{flex:1;background:none;border:0;padding:10px 0;font-size:15px;color:var(--sub);border-bottom:2px solid transparent;font-weight:600}
+.tabs button.on{color:var(--accent);border-color:var(--accent)}
+main{padding:12px 16px calc(40px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
+.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:12px;border:1px solid var(--line)}
+.card h2{font-size:14px;color:var(--sub);margin:0 0 10px;font-weight:600}
+.big{font-size:26px;font-weight:700}
+.row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;gap:8px}
+.row .k{color:var(--sub)}
+.row .v{text-align:right;font-variant-numeric:tabular-nums}
+.sub{color:var(--sub);font-size:13px}
+.good{color:var(--good)}.bad{color:var(--bad)}
+.hr{height:1px;background:var(--line);margin:8px 0}
+.verdict{border-radius:12px;padding:12px;margin-top:8px;font-weight:600}
+.verdict.good{background:color-mix(in srgb,var(--good) 12%,transparent)}
+.verdict.bad{background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.hidden{display:none!important}
+
+/* 입력 화면 */
+.status{display:flex;justify-content:space-between;gap:8px;font-size:13.5px;padding:2px 2px 10px;font-variant-numeric:tabular-nums}
+.datewrap{position:relative;display:inline-block}
+.datewrap input{position:absolute;inset:0;opacity:0;width:100%;height:100%;padding:0;border:0}
+.datechip{border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:16px;padding:6px 12px;font-size:14px;font-weight:600}
+.datechip.past{background:color-mix(in srgb,var(--bad) 15%,transparent);border-color:var(--bad);color:var(--bad)}
+.cats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+.cat{border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:12px;padding:8px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12.5px;min-height:62px;justify-content:center}
+.cat .ic{font-size:22px;line-height:1.1}
+.cat.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.amount{position:relative}
+.amount input{font-size:30px;font-weight:700;padding:12px 48px 12px 14px;text-align:right;font-variant-numeric:tabular-nums}
+.amount span{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:22px;color:var(--sub);font-weight:700}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.seg button{border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:10px;padding:11px 0;font-size:14.5px;font-weight:600;white-space:nowrap}
+.toggle{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px;border-radius:12px;background:var(--chip);margin:10px 0}
+.switch{position:relative;width:52px;height:30px;flex:none}
+.switch input{opacity:0;width:0;height:0;position:absolute}
+.switch span{position:absolute;inset:0;border-radius:15px;background:var(--line);transition:background .15s}
+.switch span::after{content:'';position:absolute;left:3px;top:3px;width:24px;height:24px;border-radius:12px;background:#fff;transition:transform .15s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.switch input:checked+span{background:var(--accent)}
+.switch input:checked+span::after{transform:translateX(22px)}
+.seg button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.preview{margin-top:10px;padding:9px 12px;border-radius:10px;background:var(--accent-soft);font-weight:600;font-variant-numeric:tabular-nums;font-size:14px}
+
+label{display:block;font-size:13px;color:var(--sub);margin:10px 0 4px}
+input,select{width:100%;font-size:17px;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-family:inherit}
+input:focus{outline:2px solid var(--accent);border-color:transparent}
+.memo{margin-top:10px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn{display:block;width:100%;padding:14px;border-radius:12px;border:0;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:700;margin-top:12px}
+.btn.ghost{background:var(--chip);color:var(--text)}
+.btn.danger{background:transparent;color:var(--bad);border:1px solid var(--bad)}
+.btns{display:flex;gap:8px}.btns .btn{flex:1}
+
+/* 내역 */
+.day{margin-bottom:12px}
+.dayhead{display:flex;justify-content:space-between;align-items:baseline;padding:4px 4px 6px;font-weight:700;gap:8px}
+.dayhead small{font-weight:500;font-variant-numeric:tabular-nums;text-align:right}
+.items{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+.item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--line)}
+.item:first-child{border-top:0}
+.item .ic{font-size:20px;width:26px;text-align:center}
+.item .mid{flex:1;min-width:0}
+.item .name{font-weight:600}
+.item .m{color:var(--sub);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .amt{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.empty{text-align:center;color:var(--sub);padding:30px 0}
+.bar{height:6px;border-radius:3px;background:var(--accent);margin-top:3px}
+
+/* 시트 */
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:10;display:none}
+.sheet-bg.open{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:11;background:var(--card);border-radius:18px 18px 0 0;
+  padding:16px 16px calc(16px + env(safe-area-inset-bottom));max-height:92vh;overflow:auto;transform:translateY(105%);transition:transform .22s;max-width:640px;margin:0 auto}
+.sheet.open{transform:none}
+.sheet h3{margin:0 0 6px;font-size:17px}
+
+table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 4px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
+.catrow{display:grid;grid-template-columns:56px 1fr 40px;gap:6px;margin-bottom:6px}
+.catrow input{padding:9px;font-size:16px}
+.catrow input.icon{text-align:center}
+.x{border:0;background:none;color:var(--bad);font-size:20px}
+.toast{position:fixed;left:50%;bottom:40px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .2s;z-index:20;pointer-events:none}
+.toast.show{opacity:.92}
+</style>
+</head>
+<body>
+<header>
+  <div class="topbar">
+    <h1 id="title">출장 경비</h1>
+    <button class="ratechip" id="rateChip"></button>
+  </div>
+  <nav class="tabs">
+    <button data-tab="entry" class="on">입력</button>
+    <button data-tab="list">내역</button>
+    <button data-tab="summary">요약</button>
+    <button data-tab="settings">설정</button>
+  </nav>
+</header>
+
+<main>
+  <section id="tab-entry">
+    <div class="status" id="todayStatus"></div>
+    <div class="card">
+      <div class="datewrap"><button class="datechip" id="eDateLabel" tabindex="-1"></button><input type="date" id="eDate" aria-label="날짜"></div>
+      <div class="cats" id="eCats"></div>
+      <div class="amount"><input id="eAmt" inputmode="decimal" placeholder="0" autocomplete="off"><span id="eSym">$</span></div>
+      <div class="seg" id="eCur"></div>
+      <div class="preview" id="ePrev"></div>
+      <input class="memo" id="eMemo" maxlength="60" placeholder="메모 (선택)" autocomplete="off">
+      <button class="btn" id="eSave">저장</button>
+    </div>
+    <div class="dayhead"><span id="eDayTitle"></span><small id="eDayTotal"></small></div>
+    <div id="eDayList"></div>
+  </section>
+  <section id="tab-list" class="hidden"></section>
+  <section id="tab-summary" class="hidden"></section>
+  <section id="tab-settings" class="hidden"></section>
+</main>
+
+<div class="sheet-bg" id="sheetBg"></div>
+
+<!-- 기록 수정 -->
+<div class="sheet" id="editSheet">
+  <h3>기록 수정</h3>
+  <label>날짜</label><input type="date" id="xDate">
+  <div class="cats" id="xCats"></div>
+  <div class="amount"><input id="xAmt" inputmode="decimal" autocomplete="off"><span id="xSym">$</span></div>
+  <div class="seg" id="xCur"></div>
+  <input class="memo" id="xMemo" maxlength="60" placeholder="메모 (선택)" autocomplete="off">
+  <div class="two">
+    <div><label>적용 환율 (₩/$)</label><input id="xRKrw" inputmode="decimal"></div>
+    <div><label>적용 환율 (៛/$)</label><input id="xRKhr" inputmode="decimal"></div>
+  </div>
+  <div class="preview" id="xPrev"></div>
+  <button class="btn" id="xSave">저장</button>
+  <div class="btns">
+    <button class="btn ghost" data-close>닫기</button>
+    <button class="btn danger" id="xDelete">삭제</button>
+  </div>
+</div>
+
+<!-- 환율 -->
+<div class="sheet" id="rateSheet">
+  <h3>환율</h3>
+  <div class="toggle">
+    <div><b>환율 자동 조회</b><div class="sub" id="rAuto"></div></div>
+    <label class="switch" style="margin:0"><input type="checkbox" id="rAutoOn"><span></span></label>
+  </div>
+  <div class="sub" id="rModeDesc"></div>
+  <div class="two">
+    <div><label>내 환율 원/달러 (₩)</label><input id="rKrw" inputmode="decimal" placeholder="1330"></div>
+    <div><label>내 환율 리엘/달러 (៛)</label><input id="rKhr" inputmode="decimal" placeholder="4000"></div>
+  </div>
+  <div class="sub" style="margin-top:6px">환율은 새로 저장하는 기록에만 적용돼요. 이미 저장한 기록의 환율은 바뀌지 않아요 (기록을 눌러서 수정 가능).</div>
+  <button class="btn" id="rSave">저장</button>
+  <div class="btns">
+    <button class="btn ghost" id="rRefresh">자동 환율 새로 받기</button>
+    <button class="btn ghost" data-close>닫기</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const APP_VERSION = 'v0.1.0';
+const KEY = 'tripExpense.v2', OLD_KEY = 'tripExpense.v1';
+const RATE_API = 'https://open.er-api.com/v6/latest/USD';
+const CURS = { USD: { name: '달러', sym: '$' }, KHR: { name: '리엘', sym: '៛' }, KRW: { name: '원', sym: '₩' } };
+// 결제 방식 = 결제수단 + 통화 (한 번 탭으로 둘 다 선택)
+const PAYS = {
+  cash: { label: '현금 $', method: '현금', cur: 'USD' },
+  riel: { label: '현금 ៛', method: '현금', cur: 'KHR' },
+  card: { label: '카드 $', method: '카드', cur: 'USD' },
+  bank: { label: '입금 ₩', method: '입금', cur: 'KRW' }
+};
+const payKeyOf = e => Object.keys(PAYS).find(k => PAYS[k].cur === e.cur && PAYS[k].method === e.method)
+  || (e.cur === 'KHR' ? 'riel' : e.cur === 'KRW' ? 'bank' : 'cash');
+const DEFAULT_CATS = [
+  { id: 'meal', icon: '🍚', name: '식사' }, { id: 'drink', icon: '🍺', name: '술' },
+  { id: 'mart', icon: '🛒', name: '마트' }, { id: 'cafe', icon: '☕', name: '카페' },
+  { id: 'delivery', icon: '🛵', name: '배달' }, { id: 'taxi', icon: '🚕', name: '교통' },
+  { id: 'living', icon: '🧴', name: '생활용품' }, { id: 'etc', icon: '📦', name: '기타' }
+];
+
+// ---------- 숫자/날짜 ----------
+const $ = id => document.getElementById(id);
+const num = v => { const n = parseFloat(String(v ?? '').replace(/,/g, '')); return isFinite(n) ? n : 0; };
+const usd = x => (x < 0 ? '-$' : '$') + Math.abs(x).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const krw = x => (x < 0 ? '-₩' : '₩') + Math.round(Math.abs(x)).toLocaleString('ko-KR');
+const khr = x => Math.round(x).toLocaleString('ko-KR') + '៛';
+const fmtCur = (amt, cur) => cur === 'USD' ? usd(amt) : cur === 'KRW' ? krw(amt) : khr(amt);
+const fmtRate = x => (+x).toLocaleString('ko-KR', { maximumFractionDigits: 2 });
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const today = () => ymd(new Date());
+const diffDays = (a, b) => Math.round((parse(b) - parse(a)) / 86400000);
+const minD = (a, b) => (a < b ? a : b), maxD = (a, b) => (a > b ? a : b);
+const WEEK = ['일', '월', '화', '수', '목', '금', '토'];
+const md = s => { const d = parse(s); return `${d.getMonth() + 1}/${d.getDate()} (${WEEK[d.getDay()]})`; };
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+// ---------- 저장소 ----------
+const defaults = () => ({
+  version: 2,
+  settings: { title: '', start: '', end: '', dailyUsd: 45, defaultPayRate: 1330, payRates: {},
+    autoRate: true, manualKrw: null, manualKhr: null, fetched: null, categories: DEFAULT_CATS.map(c => ({ ...c })) },
+  expenses: []
+});
+
+// v1(통화별 칸 혼합 입력) → v2(한 건 = 한 통화 + 환율 스냅샷)
+function migrate(d) {
+  if (!d || !d.settings) return null;
+  const out = defaults();
+  if (d.version === 2) return { ...out, ...d, settings: { ...out.settings, ...d.settings } };
+  const s = d.settings;
+  Object.assign(out.settings, { title: s.title || '', start: s.start || '', end: s.end || '',
+    dailyUsd: num(s.dailyUsd) || 45, defaultPayRate: num(s.defaultRate) || 1330,
+    payRates: { ...(s.monthRates || {}) }, manualKhr: num(s.khrPerUsd) || null });
+  for (const e of d.expenses || []) {
+    const rKrw = num((s.monthRates || {})[e.date.slice(0, 7)]) || num(s.defaultRate) || 1330;
+    const rKhr = num(s.khrPerUsd) || 4000;
+    [['USD', num(e.usd)], ['KHR', num(e.khr) - num(e.khrChange)], ['KRW', num(e.krw)]]
+      .filter(p => p[1])
+      .forEach(([cur, amount], i) => out.expenses.push({ id: e.id + (i ? '-' + i : ''), createdAt: (e.createdAt || 0) + i,
+        date: e.date, cat: 'etc', cur, amount, memo: e.memo || '', rKrw, rKhr,
+        method: cur === 'KRW' ? '입금' : cur === 'KHR' ? '현금' : (e.method === '카드' ? '카드' : '현금') }));
+  }
+  return out;
+}
+
+function load() {
+  for (const k of [KEY, OLD_KEY]) {
+    try { const d = migrate(JSON.parse(localStorage.getItem(k))); if (d) return d; } catch (e) {}
+  }
+  return defaults();
+}
+let S = load();
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('저장 실패: 브라우저 저장소를 확인하세요'); }
+}
+
+// ---------- 환율 ----------
+// 자동 조회 ON: 오늘 시장 환율 (못 받았으면 직접 입력값/기본값)
+// 자동 조회 OFF: 직접 입력한 환율 (미리 환전한 환율 등)만 사용
+function curRates() {
+  const s = S.settings, f = s.autoRate ? s.fetched : null;
+  return {
+    krw: num(f?.krw) || num(s.manualKrw) || num(s.defaultPayRate) || 1330,
+    khr: num(f?.khr) || num(s.manualKhr) || 4000
+  };
+}
+const payRate = ym => num(S.settings.payRates[ym]) || num(S.settings.defaultPayRate) || 1330;
+
+async function fetchRates(force) {
+  const f = S.settings.fetched;
+  if (!force && (!S.settings.autoRate || (f && f.date === today()))) return;
+  try {
+    const r = await fetch(RATE_API, { cache: 'no-store' });
+    const j = await r.json();
+    if (j.result !== 'success' || !j.rates?.KRW || !j.rates?.KHR) throw 0;
+    S.settings.fetched = { krw: j.rates.KRW, khr: j.rates.KHR, date: today(), updated: j.time_last_update_utc };
+    save(); renderAll();
+    if (force) toast('환율을 새로 받았어요');
+  } catch (e) { if (force) toast('환율을 가져오지 못했어요 (인터넷 확인)'); }
+}
+
+function conv(e) {
+  const a = num(e.amount), rK = num(e.rKrw) || 1330, rH = num(e.rKhr) || 4000;
+  const u = e.cur === 'USD' ? a : e.cur === 'KHR' ? a / rH : a / rK;
+  return { usd: u, krw: e.cur === 'KRW' ? a : u * rK };
+}
+
+const catOf = id => S.settings.categories.find(c => c.id === id) || { id, icon: '📦', name: '기타' };
+
+// ---------- 일비 계산 ----------
+// 회사는 매월 1일(첫 달은 출장 시작일)에 그 달 출장일수만큼 선지급
+function months() {
+  const { start, end } = S.settings;
+  if (!start || !end || end < start) return [];
+  const out = [], t = today(), daily = num(S.settings.dailyUsd);
+  let y = parse(start).getFullYear(), m = parse(start).getMonth();
+  while (true) {
+    const first = ymd(new Date(y, m, 1));
+    if (first > end) break;
+    const last = ymd(new Date(y, m + 1, 0));
+    const from = maxD(start, first), to = minD(end, last);
+    const days = diffDays(from, to) + 1, ym = first.slice(0, 7), rate = payRate(ym);
+    const elapsed = t < from ? 0 : diffDays(from, minD(t, to)) + 1;
+    out.push({ ym, from, to, days, rate, usdAmt: days * daily, krwAmt: days * daily * rate,
+      paid: t >= from, elapsed, accUsd: elapsed * daily, accKrw: elapsed * daily * rate });
+    if (++m > 11) { m = 0; y++; }
+  }
+  return out;
+}
+
+function stats() {
+  const ms = months(), sum = (arr, f) => arr.reduce((a, x) => a + f(x), 0);
+  let sUsd = 0, sKrw = 0;
+  const byPay = { cash: 0, riel: 0, card: 0, bank: 0 }, byPayUsd = { cash: 0, riel: 0, card: 0, bank: 0 }, byCat = {};
+  for (const e of S.expenses) {
+    const c = conv(e), k = payKeyOf(e); sUsd += c.usd; sKrw += c.krw;
+    byPay[k] += num(e.amount); byPayUsd[k] += c.usd;
+    byCat[e.cat] = (byCat[e.cat] || 0) + c.usd;
+  }
+  const paid = ms.filter(x => x.paid), elapsed = sum(ms, x => x.elapsed);
+  return { ms, start: S.settings.start, end: S.settings.end, t: today(),
+    totalDays: sum(ms, x => x.days), elapsed, sUsd, sKrw, byPay, byPayUsd, byCat,
+    accUsd: sum(ms, x => x.accUsd), accKrw: sum(ms, x => x.accKrw),
+    paidUsd: sum(paid, x => x.usdAmt), paidKrw: sum(paid, x => x.krwAmt), paidMonths: paid,
+    totUsd: sum(ms, x => x.usdAmt), totKrw: sum(ms, x => x.krwAmt),
+    avgUsd: elapsed ? sUsd / elapsed : 0, avgKrw: elapsed ? sKrw / elapsed : 0 };
+}
+const dayTotal = d => S.expenses.filter(e => e.date === d).reduce((a, e) => { const c = conv(e); a.usd += c.usd; a.krw += c.krw; return a; }, { usd: 0, krw: 0 });
+
+// ---------- 공통 UI 조각 ----------
+const catButtons = sel => S.settings.categories.map(c =>
+  `<button type="button" class="cat ${c.id === sel ? 'on' : ''}" data-cat="${esc(c.id)}"><span class="ic">${esc(c.icon)}</span>${esc(c.name)}</button>`).join('');
+const payButtons = sel => Object.entries(PAYS).map(([k, v]) =>
+  `<button type="button" class="${k === sel ? 'on' : ''}" data-pay="${k}">${v.label}</button>`).join('');
+function itemHtml(e) {
+  const c = conv(e), cat = catOf(e.cat), p = PAYS[payKeyOf(e)];
+  const sub = [p.label.split(' ')[0] + (e.cur !== 'USD' ? ' ' + fmtCur(num(e.amount), e.cur) : ''), e.memo].filter(Boolean).join(' · ');
+  return `<div class="item" data-id="${esc(e.id)}"><span class="ic">${esc(cat.icon)}</span>
+    <div class="mid"><div class="name">${esc(cat.name)}</div>${sub ? `<div class="m">${esc(sub)}</div>` : ''}</div>
+    <div class="amt"><b>${usd(c.usd)}</b><div class="sub">${krw(c.krw)}</div></div></div>`;
+}
+const leftTag = (left) => `<span class="${left >= 0 ? 'good' : 'bad'}">${left >= 0 ? '+' : ''}${usd(left)}</span>`;
+
+// ---------- 헤더 ----------
+function renderHeader() {
+  $('title').textContent = S.settings.title || '출장 경비';
+  const r = curRates();
+  $('rateChip').innerHTML = `<b>${S.settings.autoRate ? '자동' : '고정'}</b> $1 = ₩${fmtRate(r.krw)} · ${fmtRate(Math.round(r.khr))}៛`;
+}
+
+// ---------- 입력 화면 ----------
+let eDate = today(), eDateAuto = true, eCat = null, ePay = 'cash'; // eDateAuto: 날짜를 안 바꿨으면 항상 오늘
+function renderEntry() {
+  const t = today();
+  if (eDateAuto) eDate = t;
+  // 상단 상태
+  const st = stats(), daily = num(S.settings.dailyUsd);
+  if (!st.ms.length) {
+    $('todayStatus').innerHTML = `<span class="sub">설정 탭에서 출장 기간을 먼저 입력하세요.</span>`;
+  } else {
+    const tt = dayTotal(t), acc = st.accUsd - st.sUsd;
+    $('todayStatus').innerHTML = `<span>오늘 <b>${usd(tt.usd)}</b> · 일비 대비 ${leftTag(daily - tt.usd)}</span>
+      <span>누적 ${acc >= 0 ? `<b class="good">${usd(acc)} 남음</b>` : `<b class="bad">${usd(-acc)} 초과</b>`}</span>`;
+  }
+  // 날짜
+  const diff = diffDays(eDate, t);
+  $('eDate').value = eDate;
+  $('eDateLabel').textContent = (diff === 0 ? '오늘 ' : diff === 1 ? '어제 ' : '') + md(eDate) + ' ▾';
+  $('eDateLabel').classList.toggle('past', eDate !== t);
+  $('eCats').innerHTML = catButtons(eCat);
+  $('eCur').innerHTML = payButtons(ePay);
+  $('eSym').textContent = CURS[PAYS[ePay].cur].sym;
+  updateEntryPreview();
+  // 선택한 날짜 기록
+  const items = S.expenses.filter(e => e.date === eDate).sort((a, b) => b.createdAt - a.createdAt);
+  const dt = dayTotal(eDate);
+  $('eDayTitle').textContent = md(eDate) + ' 기록';
+  $('eDayTotal').innerHTML = items.length ? `${usd(dt.usd)} · ${krw(dt.krw)} (${leftTag(daily - dt.usd)})` : '';
+  $('eDayList').innerHTML = items.length ? `<div class="items">${items.map(itemHtml).join('')}</div>` : `<div class="empty">아직 기록이 없어요</div>`;
+}
+function updateEntryPreview() {
+  const a = num($('eAmt').value), r = curRates(), cur = PAYS[ePay].cur;
+  const c = conv({ amount: a, cur, rKrw: r.krw, rKhr: r.khr });
+  $('ePrev').textContent = cur === 'USD' ? `= ${krw(c.krw)}` : cur === 'KHR' ? `= ${usd(c.usd)} · ${krw(c.krw)}` : `= ${usd(c.usd)}`;
+}
+$('eAmt').addEventListener('input', updateEntryPreview);
+$('eDate').addEventListener('change', ev => { eDate = ev.target.value || today(); eDateAuto = eDate === today(); renderEntry(); });
+$('eCats').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-cat]'); if (!b) return;
+  eCat = eCat === b.dataset.cat ? null : b.dataset.cat; $('eCats').innerHTML = catButtons(eCat);
+});
+$('eCur').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-pay]'); if (!b) return;
+  ePay = b.dataset.pay; $('eCur').innerHTML = payButtons(ePay); $('eSym').textContent = CURS[PAYS[ePay].cur].sym; updateEntryPreview();
+});
+$('eSave').addEventListener('click', () => {
+  const amount = num($('eAmt').value);
+  if (!amount) { toast('금액을 입력하세요'); $('eAmt').focus(); return; }
+  const r = curRates();
+  S.expenses.push({ id: newId(), createdAt: Date.now(), date: eDate, cat: eCat || 'etc',
+    cur: PAYS[ePay].cur, method: PAYS[ePay].method, amount, memo: $('eMemo').value.trim(), rKrw: r.krw, rKhr: r.khr });
+  save();
+  $('eAmt').value = ''; $('eMemo').value = ''; eCat = null; ePay = 'cash';
+  document.activeElement?.blur();
+  navigator.vibrate?.(15);
+  renderAll(); toast(`${md(eDate)}에 저장했어요`);
+});
+$('eDayList').addEventListener('click', ev => { const it = ev.target.closest('[data-id]'); if (it) openEdit(it.dataset.id); });
+
+// ---------- 내역 ----------
+function renderList() {
+  const el = $('tab-list');
+  if (!S.expenses.length) { el.innerHTML = `<div class="empty">아직 기록이 없어요.<br>입력 탭에서 추가하세요.</div>`; return; }
+  const byDate = {}, daily = num(S.settings.dailyUsd);
+  for (const e of S.expenses) (byDate[e.date] ||= []).push(e);
+  el.innerHTML = Object.keys(byDate).sort().reverse().map(d => {
+    const items = byDate[d].sort((a, b) => a.createdAt - b.createdAt), dt = dayTotal(d);
+    return `<div class="day"><div class="dayhead"><span>${md(d)}</span>
+      <small>${usd(dt.usd)} · ${krw(dt.krw)} (${leftTag(daily - dt.usd)})</small></div>
+      <div class="items">${items.map(itemHtml).join('')}</div></div>`;
+  }).join('');
+}
+$('tab-list').addEventListener('click', ev => { const it = ev.target.closest('[data-id]'); if (it) openEdit(it.dataset.id); });
+
+// ---------- 요약 ----------
+function renderSummary() {
+  const el = $('tab-summary'), st = stats();
+  if (!st.ms.length) {
+    el.innerHTML = `<div class="card"><h2>시작하기</h2><p>먼저 <b>설정</b> 탭에서 출장 시작일·종료일과 일비를 입력하세요.</p>
+      <button class="btn" onclick="showTab('settings')">설정으로 가기</button></div>`;
+    return;
+  }
+  const daily = num(S.settings.dailyUsd), r = curRates();
+  const diff = st.accUsd - st.sUsd, diffK = st.accKrw - st.sKrw, paidDiff = st.paidUsd - st.sUsd;
+  const remainDays = st.totalDays - st.elapsed, projUsd = st.avgUsd * st.totalDays;
+  const statusTxt = st.t < st.start ? '출장 시작 전' : st.t > st.end ? '출장 종료' : `${st.elapsed}일째 / 총 ${st.totalDays}일`;
+  const cats = Object.entries(st.byCat).sort((a, b) => b[1] - a[1]), maxCat = cats[0]?.[1] || 1;
+
+  el.innerHTML = `
+  <div class="card">
+    <h2>${md(st.start)} ~ ${md(st.end)} · ${statusTxt}</h2>
+    <div class="sub">총 사용</div>
+    <div class="big">${usd(st.sUsd)}</div>
+    <div class="sub">${krw(st.sKrw)}</div>
+    <div class="hr"></div>
+    <div class="row"><span class="k">하루 평균 (${st.elapsed}일 기준)</span><span class="v"><b>${usd(st.avgUsd)}</b><br><span class="sub">${krw(st.avgKrw)}</span></span></div>
+    <div class="row"><span class="k">하루 일비</span><span class="v">${usd(daily)}<br><span class="sub">평균이 일비보다 ${st.avgUsd <= daily ? `<span class="good">${usd(daily - st.avgUsd)} 적음</span>` : `<span class="bad">${usd(st.avgUsd - daily)} 많음</span>`}</span></span></div>
+  </div>
+
+  <div class="card">
+    <h2>오늘까지 일비 기준 (${st.elapsed}일 × ${usd(daily)})</h2>
+    <div class="row"><span class="k">받을 일비 누적</span><span class="v">${usd(st.accUsd)}<br><span class="sub">${krw(st.accKrw)} (지급 환율)</span></span></div>
+    <div class="row"><span class="k">사용</span><span class="v">${usd(st.sUsd)}<br><span class="sub">${krw(st.sKrw)}</span></span></div>
+    <div class="verdict ${diff >= 0 ? 'good' : 'bad'}">${diff >= 0 ? `${usd(diff)} 남음 (${krw(diffK)})` : `${usd(-diff)} 초과 (${krw(-diffK)})`}</div>
+  </div>
+
+  <div class="card">
+    <h2>선지급 받은 일비 기준</h2>
+    <div class="row"><span class="k">지급받음 (${st.paidMonths.map(x => +x.ym.slice(5) + '월').join(', ') || '-'})</span><span class="v">${usd(st.paidUsd)}<br><span class="sub">${krw(st.paidKrw)}</span></span></div>
+    <div class="row"><span class="k">지급액 중 남은 돈</span><span class="v ${paidDiff >= 0 ? 'good' : 'bad'}"><b>${usd(paidDiff)}</b><br><span class="sub">${krw(st.paidKrw - st.sKrw)}</span></span></div>
+    ${remainDays > 0 ? `<div class="row"><span class="k">남은 ${remainDays}일 동안 하루에 쓸 수 있는 돈</span><span class="v"><b>${usd((st.totUsd - st.sUsd) / remainDays)}</b></span></div>` : ''}
+  </div>
+
+  ${cats.length ? `<div class="card"><h2>카테고리별</h2>
+    ${cats.map(([id, v]) => { const c = catOf(id); return `<div class="row"><span class="k" style="flex:1">${esc(c.icon)} ${esc(c.name)}
+      <div class="bar" style="width:${Math.max(4, v / maxCat * 100)}%"></div></span><span class="v">${usd(v)}<br><span class="sub">${Math.round(v / st.sUsd * 100)}%</span></span></div>`; }).join('')}
+  </div>` : ''}
+
+  <div class="card">
+    <h2>결제 방식별 사용</h2>
+    <div class="row"><span class="k">💵 현금 달러</span><span class="v">${usd(st.byPay.cash)}</span></div>
+    <div class="row"><span class="k">🪙 현금 리엘</span><span class="v">${khr(st.byPay.riel)}<br><span class="sub">≈ ${usd(st.byPayUsd.riel)}</span></span></div>
+    <div class="row"><span class="k">💳 카드</span><span class="v">${usd(st.byPay.card)}</span></div>
+    <div class="row"><span class="k">🏦 입금 (n빵 등)</span><span class="v">${krw(st.byPay.bank)}<br><span class="sub">≈ ${usd(st.byPayUsd.bank)}</span></span></div>
+  </div>
+
+  <div class="card">
+    <h2>전체 출장 예상</h2>
+    <div class="row"><span class="k">총 일비 (${st.totalDays}일)</span><span class="v">${usd(st.totUsd)}<br><span class="sub">${krw(st.totKrw)}</span></span></div>
+    <div class="row"><span class="k">지금 페이스면 총 사용</span><span class="v">${usd(projUsd)}</span></div>
+    <div class="row"><span class="k">예상 결과</span><span class="v ${st.totUsd - projUsd >= 0 ? 'good' : 'bad'}">${st.totUsd - projUsd >= 0 ? usd(st.totUsd - projUsd) + ' 남음' : usd(projUsd - st.totUsd) + ' 초과'}</span></div>
+  </div>`;
+}
+
+// ---------- 설정 ----------
+function renderSettings() {
+  const el = $('tab-settings'), s = S.settings, ms = months();
+  el.innerHTML = `
+  <div class="card">
+    <h2>출장 정보</h2>
+    <label>출장 이름 (선택)</label><input id="sTitle" value="${esc(s.title)}" placeholder="예: 캄보디아 출장">
+    <div class="two">
+      <div><label>시작일</label><input type="date" id="sStart" value="${s.start}"></div>
+      <div><label>종료일</label><input type="date" id="sEnd" value="${s.end}"></div>
+      <div><label>하루 일비 ($)</label><input id="sDaily" inputmode="decimal" value="${s.dailyUsd}"></div>
+      <div><label>기본 지급 환율 (₩/$)</label><input id="sPay" inputmode="decimal" value="${s.defaultPayRate}"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>월별 일비 지급 (회사 선지급)</h2>
+    ${ms.length ? `<table>
+      <tr><th>월</th><th>일수</th><th>지급 $</th><th>지급 환율</th><th>지급 ₩</th></tr>
+      ${ms.map(x => `<tr>
+        <td>${+x.ym.slice(5)}월${x.paid ? '' : ' <span class="sub">예정</span>'}<div class="sub">${md(x.from)}~</div></td>
+        <td>${x.days}</td><td>${usd(x.usdAmt)}</td>
+        <td><input data-ym="${x.ym}" class="mrate" inputmode="decimal" value="${s.payRates[x.ym] ?? ''}" placeholder="${s.defaultPayRate}"></td>
+        <td>${krw(x.krwAmt)}</td></tr>`).join('')}
+    </table>
+    <div class="sub" style="margin-top:8px">회사가 일비를 줄 때 적용한 환율입니다. 받은 일비를 원화로 계산할 때만 쓰고, 지출은 저장할 때의 환율(상단)로 계산해요.</div>`
+    : '<div class="sub">시작일·종료일을 입력하면 월별 지급표가 나와요.</div>'}
+  </div>
+
+  <div class="card">
+    <h2>카테고리</h2>
+    <div id="catEdit">${s.categories.map((c, i) => `<div class="catrow">
+      <input class="icon" data-i="${i}" data-f="icon" value="${esc(c.icon)}" maxlength="4">
+      <input data-i="${i}" data-f="name" value="${esc(c.name)}" maxlength="8">
+      <button class="x" data-del="${i}" aria-label="삭제">✕</button></div>`).join('')}</div>
+    <button class="btn ghost" id="catAdd">+ 카테고리 추가</button>
+    <div class="sub" style="margin-top:6px">삭제해도 이미 저장한 기록은 남아요 ('기타'로 표시).</div>
+  </div>
+
+  <div class="card">
+    <h2>백업 / 내보내기</h2>
+    <div class="sub">기록은 이 폰의 브라우저에만 저장돼요. 가끔 백업 파일을 받아두세요.</div>
+    <button class="btn ghost" onclick="exportCsv()">엑셀용 CSV 내보내기</button>
+    <button class="btn ghost" onclick="exportJson()">백업 파일 저장 (JSON)</button>
+    <button class="btn ghost" onclick="$('importFile').click()">백업 파일 불러오기</button>
+    <input type="file" id="importFile" accept=".json,application/json" class="hidden">
+    <button class="btn danger" onclick="resetAll()">전체 초기화</button>
+  </div>
+  <div class="sub" style="text-align:center">출장 경비 ${APP_VERSION}</div>`;
+
+  const bind = (id, key, isNum) => $(id).addEventListener('change', ev => {
+    S.settings[key] = isNum ? num(ev.target.value) : ev.target.value; save(); renderAll();
+  });
+  bind('sTitle', 'title'); bind('sStart', 'start'); bind('sEnd', 'end');
+  bind('sDaily', 'dailyUsd', true); bind('sPay', 'defaultPayRate', true);
+  el.querySelectorAll('.mrate').forEach(inp => inp.addEventListener('change', ev => {
+    const v = num(ev.target.value), ym = ev.target.dataset.ym;
+    if (v) S.settings.payRates[ym] = v; else delete S.settings.payRates[ym];
+    save(); renderAll();
+  }));
+  $('catEdit').addEventListener('change', ev => {
+    const i = ev.target.dataset.i; if (i == null) return;
+    S.settings.categories[i][ev.target.dataset.f] = ev.target.value.trim() || (ev.target.dataset.f === 'icon' ? '📦' : '이름없음');
+    save(); renderAll();
+  });
+  $('catEdit').addEventListener('click', ev => {
+    const i = ev.target.dataset.del; if (i == null) return;
+    if (!confirm(`'${S.settings.categories[i].name}' 카테고리를 삭제할까요?`)) return;
+    S.settings.categories.splice(i, 1); save(); renderAll();
+  });
+  $('catAdd').addEventListener('click', () => {
+    S.settings.categories.push({ id: newId(), icon: '🏷️', name: '새 항목' }); save(); renderAll();
+  });
+  $('importFile').addEventListener('change', importJson);
+}
+
+// ---------- 탭 ----------
+let curTab = 'entry';
+function showTab(name) {
+  curTab = name;
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  ['entry', 'list', 'summary', 'settings'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== name));
+  renderAll(); window.scrollTo(0, 0);
+}
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+function renderAll() {
+  renderHeader(); renderEntry();
+  if (curTab === 'list') renderList();
+  if (curTab === 'summary') renderSummary();
+  if (curTab === 'settings') renderSettings();
+}
+
+// ---------- 시트 ----------
+function openSheet(id) { $(id).classList.add('open'); $('sheetBg').classList.add('open'); }
+function closeSheets() { document.querySelectorAll('.sheet').forEach(s => s.classList.remove('open')); $('sheetBg').classList.remove('open'); document.activeElement?.blur(); }
+$('sheetBg').addEventListener('click', closeSheets);
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeSheets));
+
+// 기록 수정
+let xId = null, xCat = 'etc', xPay = 'cash';
+function openEdit(id) {
+  const e = S.expenses.find(x => x.id === id); if (!e) return;
+  xId = id; xCat = e.cat; xPay = payKeyOf(e);
+  $('xDate').value = e.date; $('xAmt').value = e.amount; $('xMemo').value = e.memo || '';
+  $('xRKrw').value = e.rKrw; $('xRKhr').value = e.rKhr;
+  $('xCats').innerHTML = catButtons(xCat); $('xCur').innerHTML = payButtons(xPay); $('xSym').textContent = CURS[PAYS[xPay].cur].sym;
+  updateEditPreview(); openSheet('editSheet');
+}
+const editForm = () => ({ date: $('xDate').value || today(), cat: xCat, cur: PAYS[xPay].cur, method: PAYS[xPay].method, amount: num($('xAmt').value),
+  memo: $('xMemo').value.trim(), rKrw: num($('xRKrw').value) || curRates().krw, rKhr: num($('xRKhr').value) || curRates().khr });
+function updateEditPreview() { const c = conv(editForm()); $('xPrev').textContent = `= ${usd(c.usd)} · ${krw(c.krw)}`; }
+['xAmt', 'xRKrw', 'xRKhr'].forEach(id => $(id).addEventListener('input', updateEditPreview));
+$('xCats').addEventListener('click', ev => { const b = ev.target.closest('[data-cat]'); if (!b) return; xCat = b.dataset.cat; $('xCats').innerHTML = catButtons(xCat); });
+$('xCur').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-pay]'); if (!b) return;
+  xPay = b.dataset.pay; $('xCur').innerHTML = payButtons(xPay); $('xSym').textContent = CURS[PAYS[xPay].cur].sym; updateEditPreview();
+});
+$('xSave').addEventListener('click', () => {
+  const f = editForm(); if (!f.amount) { toast('금액을 입력하세요'); return; }
+  Object.assign(S.expenses.find(x => x.id === xId), f);
+  save(); closeSheets(); renderAll(); toast('수정했어요');
+});
+$('xDelete').addEventListener('click', () => {
+  if (!confirm('이 기록을 삭제할까요?')) return;
+  S.expenses = S.expenses.filter(x => x.id !== xId);
+  save(); closeSheets(); renderAll(); toast('삭제했어요');
+});
+
+// 환율
+function rateModeDesc() {
+  $('rModeDesc').textContent = $('rAutoOn').checked
+    ? '켜짐: 매일 시장 환율을 받아서 계산해요. 인터넷이 안 되면 아래 내 환율을 써요.'
+    : '꺼짐: 아래 내 환율(미리 환전한 환율 등)로만 계산해요.';
+}
+function openRate() {
+  const f = S.settings.fetched;
+  $('rAuto').textContent = f ? `${md(f.date)} 조회: ₩${fmtRate(f.krw)} · ${fmtRate(f.khr)}៛` : '아직 받지 못했어요';
+  $('rAutoOn').checked = !!S.settings.autoRate;
+  $('rKrw').value = S.settings.manualKrw ?? ''; $('rKhr').value = S.settings.manualKhr ?? '';
+  rateModeDesc(); openSheet('rateSheet');
+}
+$('rAutoOn').addEventListener('change', rateModeDesc);
+$('rateChip').addEventListener('click', openRate);
+$('rSave').addEventListener('click', () => {
+  const auto = $('rAutoOn').checked, mk = num($('rKrw').value) || null, mh = num($('rKhr').value) || null;
+  if (!auto && !mk) { toast('자동 조회를 끄려면 원/달러 환율을 입력하세요'); $('rKrw').focus(); return; }
+  Object.assign(S.settings, { autoRate: auto, manualKrw: mk, manualKhr: mh });
+  save(); closeSheets(); renderAll(); fetchRates(); toast(auto ? '자동 환율을 사용해요' : '내 환율로 고정했어요');
+});
+$('rRefresh').addEventListener('click', async () => { await fetchRates(true); openRate(); });
+
+// ---------- 백업 ----------
+function download(name, text, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+function exportJson() { download(`출장경비_백업_${today()}.json`, JSON.stringify(S, null, 2), 'application/json'); }
+function exportCsv() {
+  const q = v => `"${String(v).replace(/"/g, '""')}"`;
+  const rows = [['날짜', '카테고리', '결제', '금액', '통화', '메모', '환율(원/$)', '환율(리엘/$)', '환산달러', '환산원화']];
+  for (const e of [...S.expenses].sort((a, b) => a.date.localeCompare(b.date) || a.createdAt - b.createdAt)) {
+    const c = conv(e);
+    rows.push([e.date, catOf(e.cat).name, PAYS[payKeyOf(e)].method, num(e.amount), CURS[e.cur].name, e.memo || '', e.rKrw, e.rKhr, c.usd.toFixed(2), Math.round(c.krw)]);
+  }
+  download(`출장경비_${today()}.csv`, '﻿' + rows.map(r => r.map(q).join(',')).join('\r\n'), 'text/csv');
+}
+function importJson(ev) {
+  const file = ev.target.files[0]; if (!file) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const d = migrate(JSON.parse(rd.result));
+      if (!d) throw 0;
+      if (!confirm(`기록 ${d.expenses.length}건을 불러옵니다. 지금 데이터는 덮어써져요. 계속할까요?`)) return;
+      S = d; save(); renderAll(); toast('불러왔어요');
+    } catch (e) { toast('백업 파일 형식이 아니에요'); }
+  };
+  rd.readAsText(file);
+}
+function resetAll() {
+  if (!confirm('모든 기록과 설정을 지울까요? 되돌릴 수 없어요.')) return;
+  S = defaults(); save(); renderAll(); toast('초기화했어요');
+}
+
+let toastT;
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+// ---------- 시작 ----------
+save(); // v1 데이터가 있으면 v2로 저장
+showTab(S.settings.start ? 'entry' : 'settings');
+fetchRates();
+// 자정이 지나거나 앱으로 돌아왔을 때 날짜/환율 갱신
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  fetchRates(); renderAll();
+});
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
