@@ -4,7 +4,8 @@ Claude가 직접 할 수 없는 작업 목록입니다. 처리하면 `[완료] (
 
 ## 폰에서 쓰기 위한 배포
 
-- [ ] **GitHub Pages 배포** — Claude가 진행 예정 (저장소 생성·push·Pages 설정은 사용자 확인 후 실행)
+- [완료] **GitHub Pages 배포** (2026-10-21, Claude 처리) — https://khn3138.github.io/trip-expense/
+  - 저장소: https://github.com/khn3138/trip-expense (`main` 브랜치에 push하면 1~2분 뒤 자동 반영)
 - [ ] **폰 홈 화면에 추가**
   - iPhone(Safari): 공유 버튼 → "홈 화면에 추가"
   - Android(Chrome): 메뉴(⋮) → "홈 화면에 추가" 또는 "앱 설치"

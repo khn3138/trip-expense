@@ -61,4 +61,5 @@ icon.svg              앱 아이콘
 ## 실행 / 배포
 
 - 로컬: `python -m http.server 8080` 후 `http://localhost:8080`
-- 배포: GitHub Pages (정적 파일 그대로) → 폰 브라우저에서 열고 **홈 화면에 추가**
+- 배포: GitHub Pages — **https://khn3138.github.io/trip-expense/** (`main`에 push하면 자동 반영)
+- 폰 브라우저에서 위 주소를 열고 **홈 화면에 추가**
