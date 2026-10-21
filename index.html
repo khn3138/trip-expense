@@ -152,12 +152,18 @@ td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
 .addpay select{padding:9px 8px;font-size:15px}
 .addpay .btn{margin:0;padding:9px 14px;font-size:15px}
 select:disabled{opacity:.6}
+.tripbtn{border:0;background:none;color:inherit;font:inherit;font-weight:700;padding:0;display:flex;align-items:center;gap:4px;max-width:100%;min-width:0}
+.tripbtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tripbtn i{font-style:normal;color:var(--sub);font-size:13px}
+h1{min-width:0}
+.trip .name{display:flex;gap:6px;align-items:center}
+.badge{font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--accent);color:var(--on-accent)}
 </style>
 </head>
 <body>
 <header>
   <div class="topbar">
-    <h1 id="title">해외지갑</h1>
+    <h1><button class="tripbtn" id="tripBtn"><span id="title">해외지갑</span><i>▾</i></button></h1>
     <button class="ratechip" id="rateChip"></button>
   </div>
   <nav class="tabs">
@@ -287,12 +293,38 @@ select:disabled{opacity:.6}
   </div>
 </div>
 
+<!-- 출장·여행 목록 -->
+<div class="sheet" id="tripSheet">
+  <h3>출장 · 여행</h3>
+  <div class="sub">눌러서 바꿔요. 기록은 출장·여행마다 따로 저장돼요.</div>
+  <div id="tripList" style="margin-top:10px"></div>
+  <button class="btn" id="tripNew">+ 새로 만들기</button>
+  <button class="btn ghost" data-close>닫기</button>
+</div>
+
+<!-- 새 출장·여행 -->
+<div class="sheet" id="newTripSheet">
+  <h3>새로 만들기</h3>
+  <div class="seg" id="nKind" style="grid-template-columns:1fr 1fr"></div>
+  <label>이름 (선택)</label><input id="nTitle" maxlength="30" autocomplete="off">
+  <label>나라</label><div class="units" id="nPreset" style="margin-top:0"></div>
+  <div class="two">
+    <div><label>시작일</label><input type="date" id="nStart"></div>
+    <div><label>종료일</label><input type="date" id="nEnd"></div>
+    <div><label id="nDailyLabel">하루 일비</label><input id="nDaily" inputmode="decimal" placeholder="0"></div>
+    <div><label id="nBaseLabel">일비 통화</label><select id="nBase"></select></div>
+  </div>
+  <div class="sub" style="margin-top:8px">결제 버튼·환율은 나라에 맞게 정해지고, 카테고리는 지금 것을 그대로 가져와요. 모두 나중에 설정에서 바꿀 수 있어요.</div>
+  <button class="btn" id="nCreate">만들기</button>
+  <button class="btn ghost" data-close>취소</button>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v0.4.1';
+const APP_VERSION = 'v0.5.0';
 const APP_NAME = '해외지갑';
-const KEY = 'tripExpense.v3', OLD_KEYS = ['tripExpense.v2', 'tripExpense.v1'];
+const DB_KEY = 'tripExpense.v4', OLD_KEYS = ['tripExpense.v3', 'tripExpense.v2', 'tripExpense.v1'];
 const RATE_API = 'https://open.er-api.com/v6/latest/USD';
 
 // 통화: sym 기호, post 기호를 뒤에 붙임, dec 소수 자리, units n빵 올림 단위, usd 1달러당 대략 환율(자동 조회 전 임시값)
@@ -361,6 +393,7 @@ const uniq = a => [...new Set(a)];
 const defaults = () => ({
   version: 3,
   settings: {
+    kind: '출장',                           // '출장'(회사 일비·선지급) | '여행'(하루 예산)
     title: '', start: '', end: '', preset: 'kh',
     base: 'USD', daily: 45,                 // 일비 통화와 하루 일비
     defaultPayRate: 1330, payRates: {},     // 회사 지급 환율 (원 / 일비 통화 1단위)
@@ -419,11 +452,26 @@ function migrate(d) {
   const out = defaults();
   return { ...out, ...d, settings: { ...out.settings, ...d.settings } };
 }
-function load() {
-  for (const k of [KEY, ...OLD_KEYS]) {
-    try { const d = migrate(JSON.parse(localStorage.getItem(k))); if (d) return upgradeCats(d); } catch (e) {}
+// 여러 출장·여행: DB = { version: 4, cur: 보고 있는 id, trips: [{ id, settings, expenses, moves }], fetched }
+// S는 지금 보고 있는 출장 하나 (나머지 코드는 S만 다룸)
+function wrapSingle(d) {
+  const t = { ...upgradeCats(d), id: d.id || newId() };
+  const fetched = t.settings.fetched || null;
+  delete t.settings.fetched;   // 자동 환율은 DB 공통
+  return { version: 4, cur: t.id, trips: [t], fetched };
+}
+function normDb(db) {
+  db.trips = db.trips.map(t => ({ ...upgradeCats(migrate(t)), id: t.id || newId() }));
+  if (!db.trips.some(t => t.id === db.cur)) db.cur = db.trips[0].id;
+  return db;
+}
+function loadDb() {
+  try { const db = JSON.parse(localStorage.getItem(DB_KEY)); if (db?.trips?.length) return normDb(db); } catch (e) {}
+  // v0.4.1까지: 출장 하나만 저장 → 첫 번째 출장으로
+  for (const k of OLD_KEYS) {
+    try { const d = migrate(JSON.parse(localStorage.getItem(k))); if (d) return wrapSingle(d); } catch (e) {}
   }
-  return upgradeCats(defaults());
+  return wrapSingle(defaults());
 }
 // 새 기본 카테고리(v0.2.0: 팁)를 기존 사용자 목록에 한 번만 추가 (사용자가 지운 건 다시 안 넣음)
 function upgradeCats(d) {
@@ -436,10 +484,17 @@ function upgradeCats(d) {
   s.catVer = CAT_VER;
   return d;
 }
-let S = load();
+let DB = loadDb();
+let S = DB.trips.find(t => t.id === DB.cur);
 function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('저장 실패: 브라우저 저장소를 확인하세요'); }
+  try { localStorage.setItem(DB_KEY, JSON.stringify(DB)); } catch (e) { toast('저장 실패: 브라우저 저장소를 확인하세요'); }
 }
+// 다른 출장의 합계 등을 계산할 때 잠깐 S를 바꿔서 기존 함수를 그대로 씀
+function withTrip(t, fn) { const prev = S; S = t; try { return fn(); } finally { S = prev; } }
+const KIND = () => S.settings.kind || '출장';
+const isBiz = () => KIND() === '출장';           // 출장: 회사 일비(선지급) / 여행: 하루 예산
+const W = () => isBiz() ? '일비' : '예산';
+const tripName = t => t.settings.title || `${PRESETS[t.settings.preset]?.name || ''} ${t.settings.kind || '출장'}`.trim();
 
 // ---------- 결제 버튼 / 지갑 ----------
 const BASE = () => S.settings.base;
@@ -460,7 +515,7 @@ const rateCurs = () => uniq([...pays().map(p => p.cur), 'KRW']).filter(c => c !=
 
 // ---------- 환율 ----------
 // 모든 환율은 '일비 통화 1단위당 그 통화 금액'. 고정이면 그 값, 아니면 자동 조회(1달러당)에서 계산
-const perUsd = c => num(S.settings.fetched?.rates?.[c]) || CURS[c]?.usd || 1;
+const perUsd = c => num(DB.fetched?.rates?.[c]) || CURS[c]?.usd || 1;
 const autoRate = c => perUsd(c) / perUsd(BASE());
 function curRates() {
   const r = {};
@@ -475,7 +530,7 @@ const snapRates = () => { const r = curRates(), o = {}; for (const c of uniq([..
 const payRate = ym => num(S.settings.payRates[ym]) || num(S.settings.defaultPayRate) || 1330;
 
 async function fetchRates(force) {
-  const f = S.settings.fetched;
+  const f = DB.fetched;
   if (!force && f && f.date === today()) return;
   try {
     const r = await fetch(RATE_API, { cache: 'no-store' });
@@ -483,7 +538,7 @@ async function fetchRates(force) {
     if (j.result !== 'success' || !j.rates?.KRW) throw 0;
     const rates = {};
     for (const c of Object.keys(CURS)) if (j.rates[c]) rates[c] = j.rates[c];
-    S.settings.fetched = { date: today(), updated: j.time_last_update_utc, rates };
+    DB.fetched = { date: today(), updated: j.time_last_update_utc, rates };
     save(); renderAll();
     if (force) toast('환율을 새로 받았어요');
   } catch (e) { if (force) toast('환율을 가져오지 못했어요 (인터넷 확인)'); }
@@ -512,7 +567,7 @@ function months() {
     if (first > end) break;
     const last = ymd(new Date(y, m + 1, 0));
     const from = maxD(start, first), to = minD(end, last);
-    const days = diffDays(from, to) + 1, ym = first.slice(0, 7), rate = payRate(ym);
+    const days = diffDays(from, to) + 1, ym = first.slice(0, 7), rate = isBiz() ? payRate(ym) : curRates().KRW;
     const elapsed = t < from ? 0 : diffDays(from, minD(t, to)) + 1;
     out.push({ ym, from, to, days, rate, amt: days * daily, krwAmt: days * daily * rate,
       paid: t >= from, elapsed, acc: elapsed * daily, accKrw: elapsed * daily * rate });
@@ -571,7 +626,7 @@ const withKrw = (b, k) => BASE() !== 'KRW' ? `${fb(b)} · ${krw(k)}` : fb(b);
 
 // ---------- 헤더 ----------
 function renderHeader() {
-  $('title').textContent = S.settings.title || APP_NAME;
+  $('title').textContent = tripName(S);
   const r = curRates();
   $('rateChip').innerHTML = `<b>${unit1(BASE())}</b> = ` + rateCurs().map(c =>
     fmtRateCur(r[c] >= 100 ? Math.round(r[c]) : r[c], c) + (S.settings.rateCfg[c]?.fixed ? '📌' : '')).join(' · ');
@@ -587,10 +642,10 @@ function renderEntry() {
   // 상단 상태
   const st = stats(), daily = num(S.settings.daily);
   if (!st.ms.length) {
-    $('todayStatus').innerHTML = `<span class="sub">설정 탭에서 출장 기간을 먼저 입력하세요.</span>`;
+    $('todayStatus').innerHTML = `<span class="sub">설정 탭에서 ${KIND()} 기간을 먼저 입력하세요.</span>`;
   } else {
     const tt = dayTotal(t), acc = st.acc - st.sB;
-    $('todayStatus').innerHTML = `<span>오늘 <b>${fb(tt.b)}</b> · 일비 대비 ${leftTag(daily - tt.b)}</span>
+    $('todayStatus').innerHTML = `<span>오늘 <b>${fb(tt.b)}</b> · ${W()} 대비 ${leftTag(daily - tt.b)}</span>
       <span>누적 ${acc >= 0 ? `<b class="good">${fb(acc)} 남음</b>` : `<b class="bad">${fb(-acc)} 초과</b>`}</span>`;
   }
   // 날짜
@@ -924,7 +979,7 @@ $('adjSave').addEventListener('click', () => {
 function renderSummary() {
   const el = $('tab-summary'), st = stats();
   if (!st.ms.length) {
-    el.innerHTML = `<div class="card"><h2>시작하기</h2><p>먼저 <b>설정</b> 탭에서 출장 시작일·종료일과 일비를 입력하세요.</p>
+    el.innerHTML = `<div class="card"><h2>시작하기</h2><p>먼저 <b>설정</b> 탭에서 ${KIND()} 기간과 하루 ${W()} 금액을 입력하세요.</p>
       <button class="btn" onclick="showTab('settings')">설정으로 가기</button></div>`;
     return;
   }
@@ -932,7 +987,8 @@ function renderSummary() {
   const sk = v => K ? `<br><span class="sub">${krw(v)}</span>` : '';
   const diff = st.acc - st.sB, diffK = st.accKrw - st.sKrw, paidDiff = st.paidB - st.sB;
   const remainDays = st.totalDays - st.elapsed, proj = st.avg * st.totalDays;
-  const statusTxt = st.t < st.start ? '출장 시작 전' : st.t > st.end ? '출장 종료' : `${st.elapsed}일째 / 총 ${st.totalDays}일`;
+  const statusTxt = st.t < st.start ? `${KIND()} 시작 전` : st.t > st.end ? `${KIND()} 종료` : `${st.elapsed}일째 / 총 ${st.totalDays}일`;
+  const remainRow = remainDays > 0 ? `<div class="row"><span class="k">남은 ${remainDays}일 동안 하루에 쓸 수 있는 돈</span><span class="v"><b>${fb((st.tot - st.sB) / remainDays)}</b></span></div>` : '';
   const cats = Object.entries(st.byCat).sort((a, b) => b[1] - a[1]), maxCat = cats[0]?.[1] || 1;
   // 결제 방식별: 결제 버튼 순서대로, 지금 버튼에 없는 기록은 뒤에
   const payRows = uniq([...pays().map(p => p.id), ...Object.keys(st.byPay)]).filter(id => st.byPay[id]).map(id => st.byPay[id]);
@@ -945,22 +1001,22 @@ function renderSummary() {
     ${K ? `<div class="sub">${krw(st.sKrw)}</div>` : ''}
     <div class="hr"></div>
     <div class="row"><span class="k">하루 평균 (${st.elapsed}일 기준)</span><span class="v"><b>${fb(st.avg)}</b>${sk(st.avgKrw)}</span></div>
-    <div class="row"><span class="k">하루 일비</span><span class="v">${fb(daily)}<br><span class="sub">평균이 일비보다 ${st.avg <= daily ? `<span class="good">${fb(daily - st.avg)} 적음</span>` : `<span class="bad">${fb(st.avg - daily)} 많음</span>`}</span></span></div>
+    <div class="row"><span class="k">하루 ${W()}</span><span class="v">${fb(daily)}<br><span class="sub">평균이 ${W()}보다 ${st.avg <= daily ? `<span class="good">${fb(daily - st.avg)} 적음</span>` : `<span class="bad">${fb(st.avg - daily)} 많음</span>`}</span></span></div>
   </div>
 
   <div class="card">
-    <h2>오늘까지 일비 기준 (${st.elapsed}일 × ${fb(daily)})</h2>
-    <div class="row"><span class="k">받을 일비 누적</span><span class="v">${fb(st.acc)}${K ? `<br><span class="sub">${krw(st.accKrw)} (지급 환율)</span>` : ''}</span></div>
+    <h2>오늘까지 ${W()} 기준 (${st.elapsed}일 × ${fb(daily)})</h2>
+    <div class="row"><span class="k">${isBiz() ? '받을 일비 누적' : '쓸 수 있는 예산 누적'}</span><span class="v">${fb(st.acc)}${K ? `<br><span class="sub">${krw(st.accKrw)}${isBiz() ? ' (지급 환율)' : ''}</span>` : ''}</span></div>
     <div class="row"><span class="k">사용</span><span class="v">${fb(st.sB)}${sk(st.sKrw)}</span></div>
     <div class="verdict ${diff >= 0 ? 'good' : 'bad'}">${diff >= 0 ? `${fb(diff)} 남음` : `${fb(-diff)} 초과`}${K ? ` (${krw(Math.abs(diffK))})` : ''}</div>
   </div>
 
-  <div class="card">
+  ${isBiz() ? `<div class="card">
     <h2>선지급 받은 일비 기준</h2>
     <div class="row"><span class="k">지급받음 (${st.paidMonths.map(x => +x.ym.slice(5) + '월').join(', ') || '-'})</span><span class="v">${fb(st.paidB)}${sk(st.paidKrw)}</span></div>
     <div class="row"><span class="k">지급액 중 남은 돈</span><span class="v ${paidDiff >= 0 ? 'good' : 'bad'}"><b>${fb(paidDiff)}</b>${sk(st.paidKrw - st.sKrw)}</span></div>
-    ${remainDays > 0 ? `<div class="row"><span class="k">남은 ${remainDays}일 동안 하루에 쓸 수 있는 돈</span><span class="v"><b>${fb((st.tot - st.sB) / remainDays)}</b></span></div>` : ''}
-  </div>
+    ${remainRow}
+  </div>` : ''}
 
   ${cats.length ? `<div class="card"><h2>카테고리별</h2>
     ${cats.map(([id, v]) => { const c = catOf(id); return `<div class="row"><span class="k" style="flex:1">${esc(c.icon)} ${esc(c.name)}
@@ -974,8 +1030,9 @@ function renderSummary() {
   </div>` : ''}
 
   <div class="card">
-    <h2>전체 출장 예상</h2>
-    <div class="row"><span class="k">총 일비 (${st.totalDays}일)</span><span class="v">${fb(st.tot)}${sk(st.totKrw)}</span></div>
+    <h2>전체 ${KIND()} 예상</h2>
+    ${isBiz() ? '' : remainRow}
+    <div class="row"><span class="k">총 ${W()} (${st.totalDays}일)</span><span class="v">${fb(st.tot)}${sk(st.totKrw)}</span></div>
     <div class="row"><span class="k">지금 페이스면 총 사용</span><span class="v">${fb(proj)}</span></div>
     <div class="row"><span class="k">예상 결과</span><span class="v ${st.tot - proj >= 0 ? 'good' : 'bad'}">${st.tot - proj >= 0 ? fb(st.tot - proj) + ' 남음' : fb(proj - st.tot) + ' 초과'}</span></div>
   </div>`;
@@ -987,13 +1044,15 @@ function renderSettings() {
   const el = $('tab-settings'), s = S.settings, ms = months(), bs = sym(s.base), locked = S.expenses.length > 0;
   el.innerHTML = `
   <div class="card">
-    <h2>출장 정보</h2>
-    <label>출장 이름 (선택)</label><input id="sTitle" value="${esc(s.title)}" placeholder="예: ${esc(PRESETS[s.preset]?.name || '캄보디아')} 출장">
+    <h2>${KIND()} 정보</h2>
+    <div class="seg" id="sKind" style="grid-template-columns:1fr 1fr;margin:0 0 4px">${kindButtons(KIND())}</div>
+    <div class="sub">출장은 회사 일비(매월 선지급)로, 여행은 하루 예산으로 계산해요.</div>
+    <label>${KIND()} 이름 (선택)</label><input id="sTitle" value="${esc(s.title)}" placeholder="${esc(tripName({ settings: { ...s, title: '' } }))}">
     <div class="two">
       <div><label>시작일</label><input type="date" id="sStart" value="${s.start}"></div>
       <div><label>종료일</label><input type="date" id="sEnd" value="${s.end}"></div>
-      <div><label>하루 일비 (${bs})</label><input id="sDaily" inputmode="decimal" value="${s.daily}"></div>
-      <div><label>기본 지급 환율 (₩/${bs})</label><input id="sPay" inputmode="decimal" value="${s.defaultPayRate}"></div>
+      <div><label>하루 ${W()} (${bs})</label><input id="sDaily" inputmode="decimal" value="${s.daily}"></div>
+      ${isBiz() ? `<div><label>기본 지급 환율 (₩/${bs})</label><input id="sPay" inputmode="decimal" value="${s.defaultPayRate}"></div>` : ''}
     </div>
   </div>
 
@@ -1001,9 +1060,9 @@ function renderSettings() {
     <h2>나라 · 통화</h2>
     <div class="sub">나라를 고르면 결제 버튼과 환율 설정이 한 번에 바뀌어요. 이미 적은 기록은 그대로예요.</div>
     <div class="units" id="presetBtns">${Object.entries(PRESETS).map(([k, p]) => `<button type="button" class="${s.preset === k ? 'on' : ''}" data-preset="${k}">${p.name}</button>`).join('')}</div>
-    <label>일비 통화</label>
+    <label>${W()} 통화</label>
     <select id="sBase" ${locked ? 'disabled' : ''}>${curOptions(s.base)}</select>
-    ${locked ? '<div class="sub" style="margin-top:4px">기록이 있으면 일비 통화를 바꿀 수 없어요. 새 출장 기능(다음 버전)에서 바꿀 수 있어요.</div>' : ''}
+    ${locked ? `<div class="sub" style="margin-top:4px">기록이 있으면 ${W()} 통화를 바꿀 수 없어요. 다른 통화가 필요하면 위쪽 제목을 눌러 새로 만드세요.</div>` : ''}
     <label>결제 버튼 (입력 화면에 이 순서로 나와요)</label>
     <div id="payEdit">${s.pays.map(p => `<div class="payrow"><span>${p.method === '카드' ? '💳' : p.method === '입금' ? '🏦' : CURS[p.cur]?.icon || '💵'} ${payLabel(p)} <span class="sub">${CURS[p.cur]?.name || p.cur}</span></span>
       <button class="x" data-delpay="${p.id}" aria-label="삭제">✕</button></div>`).join('')}</div>
@@ -1015,7 +1074,7 @@ function renderSettings() {
     <div class="sub" style="margin-top:6px">현금 통화가 2개 이상이면 '거스름 받음'으로 다른 통화 거스름을 적을 수 있어요. 입금은 지갑에 포함하지 않아요.</div>
   </div>
 
-  <div class="card">
+  ${isBiz() ? `<div class="card">
     <h2>월별 일비 지급 (회사 선지급)</h2>
     ${ms.length ? `<table>
       <tr><th>월</th><th>일수</th><th>지급 ${bs}</th><th>지급 환율</th><th>지급 ₩</th></tr>
@@ -1027,7 +1086,7 @@ function renderSettings() {
     </table>
     <div class="sub" style="margin-top:8px">회사가 일비를 줄 때 적용한 환율입니다. 받은 일비를 원화로 계산할 때만 쓰고, 지출은 저장할 때의 환율(상단)로 계산해요.</div>`
     : '<div class="sub">시작일·종료일을 입력하면 월별 지급표가 나와요.</div>'}
-  </div>
+  </div>` : ''}
 
   <div class="card">
     <h2>카테고리</h2>
@@ -1046,7 +1105,13 @@ function renderSettings() {
     <button class="btn ghost" onclick="exportJson()">백업 파일 저장 (JSON)</button>
     <button class="btn ghost" onclick="$('importFile').click()">백업 파일 불러오기</button>
     <input type="file" id="importFile" accept=".json,application/json" class="hidden">
-    <button class="btn danger" onclick="resetAll()">전체 초기화</button>
+  </div>
+
+  <div class="card">
+    <h2>${KIND()} 관리</h2>
+    <div class="sub">위쪽 제목을 누르면 다른 출장·여행으로 바꾸거나 새로 만들 수 있어요.</div>
+    ${DB.trips.length > 1 ? `<button class="btn danger" onclick="deleteTrip()">이 ${KIND()} 삭제</button>` : ''}
+    <button class="btn danger" onclick="resetAll()">전체 초기화 (모든 출장·여행)</button>
   </div>
   <div class="sub" style="text-align:center">${APP_NAME} ${APP_VERSION}</div>`;
 
@@ -1054,7 +1119,8 @@ function renderSettings() {
     S.settings[key] = isNum ? num(ev.target.value) : ev.target.value; save(); renderAll();
   });
   bind('sTitle', 'title'); bind('sStart', 'start'); bind('sEnd', 'end');
-  bind('sDaily', 'daily', true); bind('sPay', 'defaultPayRate', true);
+  bind('sDaily', 'daily', true); if ($('sPay')) bind('sPay', 'defaultPayRate', true);
+  $('sKind').addEventListener('click', ev => { const b = ev.target.closest('[data-kind]'); if (b && b.dataset.kind !== KIND()) { S.settings.kind = b.dataset.kind; save(); renderAll(); } });
   $('sBase').addEventListener('change', ev => setBase(ev.target.value));
   $('presetBtns').addEventListener('click', ev => { const b = ev.target.closest('[data-preset]'); if (b) applyPreset(b.dataset.preset); });
   $('payEdit').addEventListener('click', ev => { const b = ev.target.closest('[data-delpay]'); if (b) removePay(b.dataset.delpay); });
@@ -1083,12 +1149,12 @@ function renderSettings() {
 // 일비 통화 변경: 기록이 없을 때만. 고정 환율·지급 환율은 이전 통화 기준이라 다시 설정
 function setBase(cur, quiet) {
   if (cur === S.settings.base) return;
-  if (S.expenses.length) { toast('기록이 있으면 일비 통화를 바꿀 수 없어요'); renderAll(); return; }
+  if (S.expenses.length) { toast(`기록이 있으면 ${W()} 통화를 바꿀 수 없어요`); renderAll(); return; }
   const s = S.settings;
   s.base = cur; s.rateCfg = {}; s.payRates = {};
   s.defaultPayRate = cur === 'KRW' ? 1 : Math.round(perUsd('KRW') / perUsd(cur) * 100) / 100;
   save(); renderAll();
-  if (!quiet) toast(`일비 통화를 ${CURS[cur].name}(으)로 바꿨어요. 하루 일비와 지급 환율을 확인하세요`);
+  if (!quiet) toast(`${W()} 통화를 ${CURS[cur].name}(으)로 바꿨어요. 하루 ${W()}${isBiz() ? '와 지급 환율' : ''}을 확인하세요`);
 }
 function applyPreset(k) {
   const p = PRESETS[k], s = S.settings;
@@ -1203,7 +1269,7 @@ $('xDelete').addEventListener('click', () => {
 
 // 환율: 통화마다 자동(매일 조회) / 📌 고정(직접 입력)
 function openRate() {
-  const f = S.settings.fetched;
+  const f = DB.fetched;
   $('rAuto').textContent = f ? `자동 조회: ${md(f.date)} 기준` : '자동 환율을 아직 받지 못했어요 (임시 환율 사용 중)';
   $('rList').innerHTML = rateCurs().map(c => {
     const cfg = S.settings.rateCfg[c] || {};
@@ -1235,7 +1301,7 @@ function download(name, text, type) {
   a.download = name; document.body.appendChild(a); a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
-function exportJson() { download(`${APP_NAME}_백업_${today()}.json`, JSON.stringify(S, null, 2), 'application/json'); }
+function exportJson() { download(`${APP_NAME}_백업_${today()}.json`, JSON.stringify(DB, null, 2), 'application/json'); }
 function exportCsv() {
   const q = v => `"${String(v).replace(/"/g, '""')}"`, bn = CURS[BASE()]?.name || BASE();
   const rows = [['날짜', '카테고리', '결제', '금액', '통화', '메모', '거스름', '거스름통화', `환율(원/${bn})`, `환산${bn}`, '환산원화']];
@@ -1244,25 +1310,104 @@ function exportCsv() {
     rows.push([e.date, catOf(e.cat).name, e.method || '현금', num(e.amount), CURS[e.cur]?.name || e.cur, e.memo || '',
       num(e.chg?.amount), e.chg ? CURS[e.chg.cur]?.name || e.chg.cur : '', e.r?.KRW ?? '', c.b.toFixed(CURS[BASE()]?.dec ?? 2), Math.round(c.krw)]);
   }
-  download(`${APP_NAME}_${today()}.csv`, '﻿' + rows.map(r => r.map(q).join(',')).join('\r\n'), 'text/csv');
+  download(`${APP_NAME}_${tripName(S)}_${today()}.csv`, '﻿' + rows.map(r => r.map(q).join(',')).join('\r\n'), 'text/csv');
 }
 function importJson(ev) {
   const file = ev.target.files[0]; if (!file) return;
   const rd = new FileReader();
   rd.onload = () => {
     try {
-      const d = migrate(JSON.parse(rd.result));
+      const raw = JSON.parse(rd.result);
+      if (raw?.trips?.length) {   // v0.5.0~ 전체 백업: 모두 바꿈
+        const db = normDb(raw);
+        if (!confirm(`출장·여행 ${db.trips.length}개를 불러옵니다. 지금 데이터는 모두 덮어써져요. 계속할까요?`)) return;
+        DB = db; S = DB.trips.find(t => t.id === DB.cur); resetEntry(); save(); renderAll(); toast('불러왔어요');
+        return;
+      }
+      // 예전 백업(출장 하나): 새 출장으로 추가 (지금 데이터는 그대로)
+      const d = migrate(raw);
       if (!d) throw 0;
-      upgradeCats(d);
-      if (!confirm(`기록 ${d.expenses.length}건을 불러옵니다. 지금 데이터는 덮어써져요. 계속할까요?`)) return;
-      S = d; save(); renderAll(); toast('불러왔어요');
+      const t = { ...upgradeCats(d), id: newId() }; delete t.settings.fetched;
+      if (!confirm(`'${tripName(t)}' (기록 ${t.expenses.length}건)을 새 출장으로 추가할까요?`)) return;
+      DB.trips.push(t); switchTrip(t.id); toast('불러왔어요');
     } catch (e) { toast('백업 파일 형식이 아니에요'); }
   };
   rd.readAsText(file);
 }
 function resetAll() {
-  if (!confirm('모든 기록과 설정을 지울까요? 되돌릴 수 없어요.')) return;
-  S = upgradeCats(defaults()); save(); renderAll(); toast('초기화했어요');
+  if (!confirm('모든 출장·여행의 기록과 설정을 지울까요? 되돌릴 수 없어요.')) return;
+  const fetched = DB.fetched;
+  DB = wrapSingle(defaults()); DB.fetched = fetched; S = DB.trips[0];
+  resetEntry(); save(); showTab('settings'); toast('초기화했어요');
+}
+
+// ---------- 출장·여행 관리 ----------
+const kindButtons = sel => ['출장', '여행'].map(k => `<button type="button" class="${k === sel ? 'on' : ''}" data-kind="${k}">${k === '출장' ? '💼' : '🧳'} ${k}</button>`).join('');
+// 다른 출장으로 바꿀 때 입력 중이던 상태를 비움
+function resetEntry() {
+  ePay = null; eCat = null; eDateAuto = true; eSplitOpen = false; eChgOpen = false;
+  ['eAmt', 'eMemo', 'eChg', 'eSplitTotal'].forEach(id => { $(id).value = ''; });
+}
+function switchTrip(id) {
+  const t = DB.trips.find(x => x.id === id); if (!t) return;
+  DB.cur = id; S = t; resetEntry(); save(); closeSheets();
+  showTab(S.settings.start ? 'entry' : 'settings');
+  toast(`'${tripName(S)}'(으)로 바꿨어요`);
+}
+function openTrips() {
+  const list = [...DB.trips].sort((a, b) => (b.settings.start || '9').localeCompare(a.settings.start || '9'));
+  $('tripList').innerHTML = `<div class="items">${list.map(t => withTrip(t, () => {
+    const st = stats(), s = t.settings;
+    const period = s.start ? `${md(s.start)} ~ ${s.end ? md(s.end) : ''}` : '기간 미입력';
+    return `<div class="item trip" data-trip="${esc(t.id)}"><span class="ic">${KIND() === '여행' ? '🧳' : '💼'}</span>
+      <div class="mid"><div class="name">${esc(tripName(t))}${t.id === DB.cur ? '<span class="badge">지금</span>' : ''}</div>
+      <div class="m">${period} · 기록 ${t.expenses.length}건</div></div>
+      <div class="amt"><b>${fb(st.sB)}</b>${st.ms.length ? `<div class="sub">${W()} ${fb(st.tot)}</div>` : ''}</div></div>`;
+  })).join('')}</div>`;
+  openSheet('tripSheet');
+}
+$('tripBtn').addEventListener('click', openTrips);
+$('tripList').addEventListener('click', ev => { const it = ev.target.closest('[data-trip]'); if (it) switchTrip(it.dataset.trip); });
+
+// 새로 만들기
+let nKind = '출장', nPreset = 'jp';
+function renderNewTrip() {
+  $('nKind').innerHTML = kindButtons(nKind);
+  $('nPreset').innerHTML = Object.entries(PRESETS).map(([k, p]) => `<button type="button" class="${k === nPreset ? 'on' : ''}" data-np="${k}">${p.name}</button>`).join('');
+  const w = nKind === '출장' ? '일비' : '예산';
+  $('nDailyLabel').textContent = `하루 ${w}`; $('nBaseLabel').textContent = `${w} 통화`;
+  $('nTitle').placeholder = `예: ${PRESETS[nPreset].name} ${nKind}`;
+}
+$('tripNew').addEventListener('click', () => {
+  nKind = KIND(); nPreset = S.settings.preset === 'kh' ? 'jp' : 'kh';
+  $('nTitle').value = ''; $('nStart').value = ''; $('nEnd').value = ''; $('nDaily').value = '';
+  $('nBase').innerHTML = curOptions(PRESETS[nPreset].base);
+  closeSheets(); renderNewTrip(); openSheet('newTripSheet');
+});
+$('nKind').addEventListener('click', ev => { const b = ev.target.closest('[data-kind]'); if (b) { nKind = b.dataset.kind; renderNewTrip(); } });
+$('nPreset').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-np]'); if (!b) return;
+  nPreset = b.dataset.np; $('nBase').value = PRESETS[nPreset].base; renderNewTrip();
+});
+$('nCreate').addEventListener('click', () => {
+  const start = $('nStart').value, end = $('nEnd').value, base = $('nBase').value, p = PRESETS[nPreset];
+  if (start && end && end < start) { toast('종료일이 시작일보다 빨라요'); return; }
+  const t = { ...defaults(), id: newId() }, s = t.settings;
+  Object.assign(s, { kind: nKind, title: $('nTitle').value.trim(), preset: nPreset, start, end, base,
+    daily: num($('nDaily').value), pays: p.pays.map(makePay),
+    defaultPayRate: base === 'KRW' ? 1 : Math.round(perUsd('KRW') / perUsd(base) * 100) / 100,
+    categories: S.settings.categories.map(c => ({ ...c })), catVer: CAT_VER, lastSplitN: S.settings.lastSplitN });
+  // 프리셋 고정 환율은 프리셋의 일비 통화 기준이라 통화가 같을 때만 적용
+  s.rateCfg = {};
+  if (base === p.base) for (const [c, v] of Object.entries(p.fixed)) s.rateCfg[c] = { fixed: true, value: v };
+  delete s.fetched;
+  DB.trips.push(t); switchTrip(t.id);
+});
+function deleteTrip() {
+  if (DB.trips.length <= 1) return;
+  if (!confirm(`'${tripName(S)}'와 기록 ${S.expenses.length}건, 지갑 기록을 모두 삭제할까요? 되돌릴 수 없어요.`)) return;
+  DB.trips = DB.trips.filter(t => t.id !== S.id);
+  switchTrip(DB.trips[0].id); toast('삭제했어요');
 }
 
 let toastT;
@@ -1272,7 +1417,7 @@ function toast(msg) {
 }
 
 // ---------- 시작 ----------
-save(); // 예전 형식(v1/v2) 데이터가 있으면 v3로 저장
+save(); // 예전 형식(v1~v3) 데이터가 있으면 v4(여러 출장)로 저장
 showTab(S.settings.start ? 'entry' : 'settings');
 fetchRates();
 // 자정이 지나거나 앱으로 돌아왔을 때 날짜/환율 갱신

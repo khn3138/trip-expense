@@ -6,7 +6,7 @@
 ## 기술 스택
 
 - 순수 HTML/CSS/JS 단일 파일(`index.html`), 빌드 도구·프레임워크·외부 라이브러리 없음
-- 저장: `localStorage` 키 `tripExpense.v3` (서버 없음). `tripExpense.v2`·`v1`은 `migrate()`에서 자동 변환 (v1→v2→v3 순서)
+- 저장: `localStorage` 키 `tripExpense.v4` = 여러 출장 DB (서버 없음). 예전 단일 출장 키 `v3`·`v2`·`v1`은 `migrate()`(v1→v2→v3) 후 `wrapSingle()`로 첫 번째 출장이 됨
 - 환율: `https://open.er-api.com/v6/latest/USD` (무료, 키 불필요, CORS 허용) — 하루 1회 조회, `CURS`에 있는 통화만 저장
 - PWA: `manifest.webmanifest`, `sw.js`(같은 출처 파일만 네트워크 우선 + 캐시 폴백)
 - 배포: GitHub Pages (정적 파일 그대로)
@@ -19,12 +19,26 @@
 - 결제 버튼 id는 `payIdFor(method, cur)`로 결정적으로 만든다. 캄보디아 4개는 예전 키(`cash`/`riel`/`card`/`bank`)를 유지해서 기존 지갑 기록과 호환.
 - 지갑 = 현금·카드 결제 버튼 (입금 제외). 지갑 키 = 결제 버튼 id.
 
-## 데이터 구조 (v3)
+## 데이터 구조
+
+여러 출장·여행 DB (v4) — `DB`. 지금 보고 있는 출장은 `S` (= `DB.trips`의 한 항목). 기존 코드는 `S`만 다루고, 다른 출장 계산은 `withTrip(t, fn)`.
+
+```js
+DB = {
+  version: 4,
+  cur,                          // 지금 보고 있는 출장 id
+  trips: [출장],                // 아래 '출장' 구조 + id
+  fetched: { date, updated, rates: { 통화: 1달러당 } }   // 자동 환율 (모든 출장 공통)
+}
+```
+
+출장 하나 (v3 구조) — `S`
 
 ```js
 {
-  version: 3,
+  id, version: 3,
   settings: {
+    kind,                       // '출장'(회사 일비·선지급) | '여행'(하루 예산, 선지급·지급 환율 없음)
     title, start, end,          // 'YYYY-MM-DD'
     preset,                     // 마지막으로 고른 나라 프리셋 키 (kh/jp/vn/th)
     base, daily,                // 일비 통화와 하루 일비
@@ -32,7 +46,6 @@
     payRates: { 'YYYY-MM': 1330 },  // 월별 회사 지급 환율 (일비 원화 계산에만 사용)
     pays: [{ id, method, cur }],    // 결제 버튼 (입력 화면 순서: 현금 → 카드 → 입금)
     rateCfg: { KHR: { fixed: true, value: 4000 } },  // 통화별 📌 고정 환율 (일비 통화 1단위당)
-    fetched: { date, updated, rates: { 통화: 1달러당 } },  // 마지막 자동 조회 결과
     categories: [{ id, icon, name }],
     catVer,                     // 기본 카테고리 버전 (upgradeCats()에서 새 기본 카테고리를 한 번만 추가)
     lastSplitN                  // 마지막 n빵 인원
@@ -59,6 +72,8 @@
 - 거스름은 '다른 통화 현금'으로 받을 때만 `chg`로 기록 (선택 입력). 같은 통화 거스름은 실제 쓴 금액만 적는다.
 - 넣기·바꾸기·맞추기는 지출이 아니다.
 - 일비 대비 판단은 일비 통화 기준. 원화 금액은 참고용.
+- 여행(`kind: '여행'`)은 '일비' 대신 '예산'(`W()`)으로 표시하고, 예산의 원화 환산은 오늘 환율을 쓴다.
+- 화면 문구에서 '출장'은 `KIND()`, '일비/예산'은 `W()`로 쓴다 (하드코딩 금지).
 
 ## 개발 시 주의
 
