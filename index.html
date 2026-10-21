@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f766e">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="출장경비">
+<meta name="apple-mobile-web-app-title" content="해외지갑">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg">
 <link rel="apple-touch-icon" href="icon.svg">
-<title>출장 경비</title>
+<title>해외지갑</title>
 <style>
 :root{
   --bg:#f4f6f8;--card:#fff;--text:#1f2933;--sub:#6b7785;--line:#e3e8ee;
@@ -157,7 +157,7 @@ select:disabled{opacity:.6}
 <body>
 <header>
   <div class="topbar">
-    <h1 id="title">출장 경비</h1>
+    <h1 id="title">해외지갑</h1>
     <button class="ratechip" id="rateChip"></button>
   </div>
   <nav class="tabs">
@@ -290,8 +290,8 @@ select:disabled{opacity:.6}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v0.4.0';
-const APP_NAME = '출장 경비';
+const APP_VERSION = 'v0.4.1';
+const APP_NAME = '해외지갑';
 const KEY = 'tripExpense.v3', OLD_KEYS = ['tripExpense.v2', 'tripExpense.v1'];
 const RATE_API = 'https://open.er-api.com/v6/latest/USD';
 
@@ -1235,7 +1235,7 @@ function download(name, text, type) {
   a.download = name; document.body.appendChild(a); a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
-function exportJson() { download(`출장경비_백업_${today()}.json`, JSON.stringify(S, null, 2), 'application/json'); }
+function exportJson() { download(`${APP_NAME}_백업_${today()}.json`, JSON.stringify(S, null, 2), 'application/json'); }
 function exportCsv() {
   const q = v => `"${String(v).replace(/"/g, '""')}"`, bn = CURS[BASE()]?.name || BASE();
   const rows = [['날짜', '카테고리', '결제', '금액', '통화', '메모', '거스름', '거스름통화', `환율(원/${bn})`, `환산${bn}`, '환산원화']];
@@ -1244,7 +1244,7 @@ function exportCsv() {
     rows.push([e.date, catOf(e.cat).name, e.method || '현금', num(e.amount), CURS[e.cur]?.name || e.cur, e.memo || '',
       num(e.chg?.amount), e.chg ? CURS[e.chg.cur]?.name || e.chg.cur : '', e.r?.KRW ?? '', c.b.toFixed(CURS[BASE()]?.dec ?? 2), Math.round(c.krw)]);
   }
-  download(`출장경비_${today()}.csv`, '﻿' + rows.map(r => r.map(q).join(',')).join('\r\n'), 'text/csv');
+  download(`${APP_NAME}_${today()}.csv`, '﻿' + rows.map(r => r.map(q).join(',')).join('\r\n'), 'text/csv');
 }
 function importJson(ev) {
   const file = ev.target.files[0]; if (!file) return;

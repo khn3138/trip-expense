@@ -1,6 +1,6 @@
 {
-  "name": "출장 경비",
-  "short_name": "출장경비",
+  "name": "해외지갑",
+  "short_name": "해외지갑",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f4f6f8",

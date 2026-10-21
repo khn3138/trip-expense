@@ -1,4 +1,4 @@
-# CLAUDE.md — 출장 경비 앱
+# CLAUDE.md — 해외지갑 앱 (저장소 이름: trip-expense)
 
 워크플로우 규칙(README / RELEASE_NOTES / claude_ideas / todo_for_user, 커밋 양식, 버전 규칙)은 전역 `~/.claude/CLAUDE.md`를 따른다.
 이 파일은 프로젝트 고유 내용만 적는다.
