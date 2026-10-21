@@ -52,8 +52,8 @@ main{padding:12px 16px calc(40px + env(safe-area-inset-bottom));max-width:640px;
 .datewrap input{position:absolute;inset:0;opacity:0;width:100%;height:100%;padding:0;border:0}
 .datechip{border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:16px;padding:6px 12px;font-size:14px;font-weight:600}
 .datechip.past{background:color-mix(in srgb,var(--bad) 15%,transparent);border-color:var(--bad);color:var(--bad)}
-.cats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
-.cat{border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:12px;padding:8px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12.5px;min-height:62px;justify-content:center}
+.cats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:12px 0}
+.cat{border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:12px;padding:7px 1px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;min-height:58px;justify-content:center;white-space:nowrap;overflow:hidden}
 .cat .ic{font-size:22px;line-height:1.1}
 .cat.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .amount{position:relative}
@@ -114,6 +114,20 @@ td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
 .x{border:0;background:none;color:var(--bad);font-size:20px}
 .toast{position:fixed;left:50%;bottom:40px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .2s;z-index:20;pointer-events:none}
 .toast.show{opacity:.92}
+.linkbtn{border:0;background:none;color:var(--accent);font-size:14px;font-weight:600;padding:8px 2px 0}
+.amount.small input{font-size:20px;padding:9px 40px 9px 12px}
+.amount.small span{font-size:18px}
+.walline{display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 10px;font-size:13px;font-variant-numeric:tabular-nums}
+.walline button{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:14px;padding:4px 10px;font-size:13px}
+.wals{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.wal{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 10px;font-variant-numeric:tabular-nums}
+.wal .n{font-size:13px;color:var(--sub)}
+.wal .b{font-size:18px;font-weight:700;margin-top:2px;word-break:break-all}
+.wbtns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.wbtns .btn{margin:0;padding:12px 4px;font-size:14px}
+.chipsel{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.chipsel button{border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:10px;padding:10px 0;font-size:14.5px;font-weight:600}
+.chipsel button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 </style>
 </head>
 <body>
@@ -125,6 +139,7 @@ td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
   <nav class="tabs">
     <button data-tab="entry" class="on">입력</button>
     <button data-tab="list">내역</button>
+    <button data-tab="wallet">지갑</button>
     <button data-tab="summary">요약</button>
     <button data-tab="settings">설정</button>
   </nav>
@@ -133,11 +148,14 @@ td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
 <main>
   <section id="tab-entry">
     <div class="status" id="todayStatus"></div>
+    <div class="walline" id="walLine"></div>
     <div class="card">
       <div class="datewrap"><button class="datechip" id="eDateLabel" tabindex="-1"></button><input type="date" id="eDate" aria-label="날짜"></div>
       <div class="cats" id="eCats"></div>
       <div class="amount"><input id="eAmt" inputmode="decimal" placeholder="0" autocomplete="off"><span id="eSym">$</span></div>
       <div class="seg" id="eCur"></div>
+      <button type="button" class="linkbtn" id="eChgToggle">+ 거스름 리엘 받음</button>
+      <div class="amount small hidden" id="eChgWrap" style="margin-top:6px"><input id="eChg" inputmode="numeric" placeholder="거스름으로 받은 리엘" autocomplete="off"><span>៛</span></div>
       <div class="preview" id="ePrev"></div>
       <input class="memo" id="eMemo" maxlength="60" placeholder="메모 (선택)" autocomplete="off">
       <button class="btn" id="eSave">저장</button>
@@ -146,6 +164,7 @@ td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
     <div id="eDayList"></div>
   </section>
   <section id="tab-list" class="hidden"></section>
+  <section id="tab-wallet" class="hidden"></section>
   <section id="tab-summary" class="hidden"></section>
   <section id="tab-settings" class="hidden"></section>
 </main>
@@ -159,6 +178,7 @@ td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
   <div class="cats" id="xCats"></div>
   <div class="amount"><input id="xAmt" inputmode="decimal" autocomplete="off"><span id="xSym">$</span></div>
   <div class="seg" id="xCur"></div>
+  <div id="xChgWrap"><label>거스름으로 받은 리엘</label><div class="amount small"><input id="xChg" inputmode="numeric" autocomplete="off"><span>៛</span></div></div>
   <input class="memo" id="xMemo" maxlength="60" placeholder="메모 (선택)" autocomplete="off">
   <div class="two">
     <div><label>적용 환율 (₩/$)</label><input id="xRKrw" inputmode="decimal"></div>
@@ -192,10 +212,40 @@ td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
   </div>
 </div>
 
+<!-- 지갑: 넣기 / 바꾸기 -->
+<div class="sheet" id="moveSheet">
+  <h3 id="mTitle"></h3>
+  <div class="sub" id="mDesc"></div>
+  <label>날짜</label><input type="date" id="mDate">
+  <label id="mFromLabel"></label>
+  <div class="chipsel" id="mFrom"></div>
+  <div class="amount small" style="margin-top:8px"><input id="mAmt" inputmode="decimal" placeholder="0" autocomplete="off"><span id="mSym">$</span></div>
+  <div id="mToWrap">
+    <label>받은 곳</label>
+    <div class="chipsel" id="mTo"></div>
+    <div class="amount small" style="margin-top:8px"><input id="mAmt2" inputmode="decimal" placeholder="0" autocomplete="off"><span id="mSym2">៛</span></div>
+  </div>
+  <input class="memo" id="mMemo" maxlength="60" placeholder="메모 (선택)" autocomplete="off">
+  <button class="btn" id="mSave">저장</button>
+  <div class="btns">
+    <button class="btn ghost" data-close>닫기</button>
+    <button class="btn danger" id="mDelete">삭제</button>
+  </div>
+</div>
+
+<!-- 지갑: 실제 잔액 맞추기 -->
+<div class="sheet" id="adjSheet">
+  <h3>실제 잔액 맞추기</h3>
+  <div class="sub">지갑의 돈을 세어서 지금 실제 금액을 넣으세요. 앱의 잔액과 다른 만큼 '보정'으로 기록돼요. 보정은 지출로 계산하지 않아요.</div>
+  <div id="adjInputs"></div>
+  <button class="btn" id="adjSave">맞추기</button>
+  <button class="btn ghost" data-close>닫기</button>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v0.1.0';
+const APP_VERSION = 'v0.2.0';
 const KEY = 'tripExpense.v2', OLD_KEY = 'tripExpense.v1';
 const RATE_API = 'https://open.er-api.com/v6/latest/USD';
 const CURS = { USD: { name: '달러', sym: '$' }, KHR: { name: '리엘', sym: '៛' }, KRW: { name: '원', sym: '₩' } };
@@ -208,12 +258,20 @@ const PAYS = {
 };
 const payKeyOf = e => Object.keys(PAYS).find(k => PAYS[k].cur === e.cur && PAYS[k].method === e.method)
   || (e.cur === 'KHR' ? 'riel' : e.cur === 'KRW' ? 'bank' : 'cash');
+// 지갑: 지출 결제 방식(PAYS)과 연결. 입금(₩)은 한국 계좌라 지갑 추적 안 함
+const WALLETS = {
+  cash: { label: '현금 $', icon: '💵', cur: 'USD' },
+  riel: { label: '현금 ៛', icon: '🪙', cur: 'KHR' },
+  card: { label: '카드 $', icon: '💳', cur: 'USD' }
+};
 const DEFAULT_CATS = [
   { id: 'meal', icon: '🍚', name: '식사' }, { id: 'drink', icon: '🍺', name: '술' },
   { id: 'mart', icon: '🛒', name: '마트' }, { id: 'cafe', icon: '☕', name: '카페' },
   { id: 'delivery', icon: '🛵', name: '배달' }, { id: 'taxi', icon: '🚕', name: '교통' },
-  { id: 'living', icon: '🧴', name: '생활용품' }, { id: 'etc', icon: '📦', name: '기타' }
+  { id: 'living', icon: '🧴', name: '생활용품' }, { id: 'tip', icon: '🙏', name: '팁' },
+  { id: 'etc', icon: '📦', name: '기타' }
 ];
+const CAT_VER = 2; // 기본 카테고리를 추가하면 올리고 load()에서 기존 사용자에게도 추가
 
 // ---------- 숫자/날짜 ----------
 const $ = id => document.getElementById(id);
@@ -238,8 +296,9 @@ const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2
 const defaults = () => ({
   version: 2,
   settings: { title: '', start: '', end: '', dailyUsd: 45, defaultPayRate: 1330, payRates: {},
-    autoRate: true, manualKrw: null, manualKhr: null, fetched: null, categories: DEFAULT_CATS.map(c => ({ ...c })) },
-  expenses: []
+    autoRate: true, manualKrw: null, manualKhr: null, fetched: null, categories: DEFAULT_CATS.map(c => ({ ...c })) }, // catVer는 upgradeCats()에서만 설정
+  expenses: [],
+  moves: [] // 지갑 이동: { id, createdAt, date, type: 'in'|'xfer'|'adjust', from, amount, to, amount2, memo }
 });
 
 // v1(통화별 칸 혼합 입력) → v2(한 건 = 한 통화 + 환율 스냅샷)
@@ -265,9 +324,20 @@ function migrate(d) {
 
 function load() {
   for (const k of [KEY, OLD_KEY]) {
-    try { const d = migrate(JSON.parse(localStorage.getItem(k))); if (d) return d; } catch (e) {}
+    try { const d = migrate(JSON.parse(localStorage.getItem(k))); if (d) return upgradeCats(d); } catch (e) {}
   }
   return defaults();
+}
+// 새 기본 카테고리(v0.2.0: 팁)를 기존 사용자 목록에 한 번만 추가 (사용자가 지운 건 다시 안 넣음)
+function upgradeCats(d) {
+  const s = d.settings;
+  // 사용자가 이미 '팁'을 만들었으면(다른 카테고리 이름을 바꾼 경우 포함) 추가하지 않음
+  if ((s.catVer || 1) < 2 && !s.categories.some(c => c.id === 'tip' || c.name.trim() === '팁')) {
+    const i = s.categories.findIndex(c => c.id === 'etc');
+    s.categories.splice(i < 0 ? s.categories.length : i, 0, { id: 'tip', icon: '🙏', name: '팁' });
+  }
+  s.catVer = CAT_VER;
+  return d;
 }
 let S = load();
 function save() {
@@ -301,7 +371,8 @@ async function fetchRates(force) {
 
 function conv(e) {
   const a = num(e.amount), rK = num(e.rKrw) || 1330, rH = num(e.rKhr) || 4000;
-  const u = e.cur === 'USD' ? a : e.cur === 'KHR' ? a / rH : a / rK;
+  // 현금 $로 내고 거스름을 리엘로 받으면(khrChange) 그만큼 빼서 실제 사용액 계산
+  const u = e.cur === 'USD' ? a - num(e.khrChange) / rH : e.cur === 'KHR' ? a / rH : a / rK;
   return { usd: u, krw: e.cur === 'KRW' ? a : u * rK };
 }
 
@@ -335,6 +406,10 @@ function stats() {
   for (const e of S.expenses) {
     const c = conv(e), k = payKeyOf(e); sUsd += c.usd; sKrw += c.krw;
     byPay[k] += num(e.amount); byPayUsd[k] += c.usd;
+    if (num(e.khrChange)) { // 거스름 리엘은 리엘 사용에서 빼고, 현금 $ 사용은 낸 금액 그대로
+      const ch = num(e.khrChange) / (num(e.rKhr) || 4000);
+      byPay.riel -= num(e.khrChange); byPayUsd.riel -= ch; byPayUsd[k] += ch;
+    }
     byCat[e.cat] = (byCat[e.cat] || 0) + c.usd;
   }
   const paid = ms.filter(x => x.paid), elapsed = sum(ms, x => x.elapsed);
@@ -354,7 +429,9 @@ const payButtons = sel => Object.entries(PAYS).map(([k, v]) =>
   `<button type="button" class="${k === sel ? 'on' : ''}" data-pay="${k}">${v.label}</button>`).join('');
 function itemHtml(e) {
   const c = conv(e), cat = catOf(e.cat), p = PAYS[payKeyOf(e)];
-  const sub = [p.label.split(' ')[0] + (e.cur !== 'USD' ? ' ' + fmtCur(num(e.amount), e.cur) : ''), e.memo].filter(Boolean).join(' · ');
+  const pay = p.label.split(' ')[0] + (e.cur !== 'USD' || num(e.khrChange) ? ' ' + fmtCur(num(e.amount), e.cur) : '')
+    + (num(e.khrChange) ? ` (거스름 ${khr(num(e.khrChange))})` : '');
+  const sub = [pay, e.memo].filter(Boolean).join(' · ');
   return `<div class="item" data-id="${esc(e.id)}"><span class="ic">${esc(cat.icon)}</span>
     <div class="mid"><div class="name">${esc(cat.name)}</div>${sub ? `<div class="m">${esc(sub)}</div>` : ''}</div>
     <div class="amt"><b>${usd(c.usd)}</b><div class="sub">${krw(c.krw)}</div></div></div>`;
@@ -390,7 +467,13 @@ function renderEntry() {
   $('eCats').innerHTML = catButtons(eCat);
   $('eCur').innerHTML = payButtons(ePay);
   $('eSym').textContent = CURS[PAYS[ePay].cur].sym;
+  updateChgUi();
   updateEntryPreview();
+  // 지갑 잔액 한 줄 (지갑을 쓰기 시작한 경우만)
+  const b = balances();
+  $('walLine').innerHTML = S.moves.length
+    ? Object.entries(WALLETS).map(([k, w]) => `<button type="button" data-go="wallet">${w.icon} ${fmtCur(b[k], w.cur)}</button>`).join('')
+    : '';
   // 선택한 날짜 기록
   const items = S.expenses.filter(e => e.date === eDate).sort((a, b) => b.createdAt - a.createdAt);
   const dt = dayTotal(eDate);
@@ -400,10 +483,19 @@ function renderEntry() {
 }
 function updateEntryPreview() {
   const a = num($('eAmt').value), r = curRates(), cur = PAYS[ePay].cur;
-  const c = conv({ amount: a, cur, rKrw: r.krw, rKhr: r.khr });
+  const c = conv({ amount: a, cur, rKrw: r.krw, rKhr: r.khr, khrChange: ePay === 'cash' ? num($('eChg').value) : 0 });
   $('ePrev').textContent = cur === 'USD' ? `= ${krw(c.krw)}` : cur === 'KHR' ? `= ${usd(c.usd)} · ${krw(c.krw)}` : `= ${usd(c.usd)}`;
 }
 $('eAmt').addEventListener('input', updateEntryPreview);
+$('eChg').addEventListener('input', updateEntryPreview);
+// 거스름 리엘 입력칸: 현금 $일 때만, 눌러야 펼침
+let eChgOpen = false;
+function updateChgUi() {
+  $('eChgToggle').classList.toggle('hidden', ePay !== 'cash' || eChgOpen);
+  $('eChgWrap').classList.toggle('hidden', ePay !== 'cash' || !eChgOpen);
+}
+$('eChgToggle').addEventListener('click', () => { eChgOpen = true; updateChgUi(); $('eChg').focus(); });
+$('walLine').addEventListener('click', ev => { if (ev.target.closest('[data-go]')) showTab('wallet'); });
 $('eDate').addEventListener('change', ev => { eDate = ev.target.value || today(); eDateAuto = eDate === today(); renderEntry(); });
 $('eCats').addEventListener('click', ev => {
   const b = ev.target.closest('[data-cat]'); if (!b) return;
@@ -411,16 +503,18 @@ $('eCats').addEventListener('click', ev => {
 });
 $('eCur').addEventListener('click', ev => {
   const b = ev.target.closest('[data-pay]'); if (!b) return;
-  ePay = b.dataset.pay; $('eCur').innerHTML = payButtons(ePay); $('eSym').textContent = CURS[PAYS[ePay].cur].sym; updateEntryPreview();
+  ePay = b.dataset.pay; $('eCur').innerHTML = payButtons(ePay); $('eSym').textContent = CURS[PAYS[ePay].cur].sym;
+  updateChgUi(); updateEntryPreview();
 });
 $('eSave').addEventListener('click', () => {
   const amount = num($('eAmt').value);
   if (!amount) { toast('금액을 입력하세요'); $('eAmt').focus(); return; }
   const r = curRates();
   S.expenses.push({ id: newId(), createdAt: Date.now(), date: eDate, cat: eCat || 'etc',
-    cur: PAYS[ePay].cur, method: PAYS[ePay].method, amount, memo: $('eMemo').value.trim(), rKrw: r.krw, rKhr: r.khr });
+    cur: PAYS[ePay].cur, method: PAYS[ePay].method, amount, memo: $('eMemo').value.trim(), rKrw: r.krw, rKhr: r.khr,
+    khrChange: ePay === 'cash' ? num($('eChg').value) : 0 });
   save();
-  $('eAmt').value = ''; $('eMemo').value = ''; eCat = null; ePay = 'cash';
+  $('eAmt').value = ''; $('eMemo').value = ''; $('eChg').value = ''; eChgOpen = false; eCat = null; ePay = 'cash';
   document.activeElement?.blur();
   navigator.vibrate?.(15);
   renderAll(); toast(`${md(eDate)}에 저장했어요`);
@@ -441,6 +535,143 @@ function renderList() {
   }).join('');
 }
 $('tab-list').addEventListener('click', ev => { const it = ev.target.closest('[data-id]'); if (it) openEdit(it.dataset.id); });
+
+// ---------- 지갑 ----------
+// 잔액 = 넣기 + 바꾸기(받은 쪽) − 바꾸기(낸 쪽) + 보정 − 지출 (+ 거스름 리엘)
+function balances() {
+  const b = { cash: 0, riel: 0, card: 0 };
+  for (const m of S.moves) {
+    if (m.type === 'xfer') { b[m.from] -= num(m.amount); b[m.to] += num(m.amount2); }
+    else if (m.to in b) b[m.to] += num(m.amount);
+  }
+  for (const e of S.expenses) {
+    const k = payKeyOf(e);
+    if (k in b) b[k] -= num(e.amount);
+    b.riel += num(e.khrChange);
+  }
+  return b;
+}
+const toUsd = (amt, cur, r = curRates()) => cur === 'USD' ? amt : cur === 'KHR' ? amt / r.khr : amt / r.krw;
+const fromUsd = (u, cur, r = curRates()) => cur === 'USD' ? u : cur === 'KHR' ? u * r.khr : u * r.krw;
+
+function renderWallet() {
+  const el = $('tab-wallet'), b = balances(), r = curRates();
+  const total = Object.entries(WALLETS).reduce((a, [k, w]) => a + toUsd(b[k], w.cur, r), 0);
+  const moves = [...S.moves].sort((x, y) => y.date.localeCompare(x.date) || y.createdAt - x.createdAt);
+  el.innerHTML = `
+  <div class="wals">${Object.entries(WALLETS).map(([k, w]) => `<div class="wal">
+    <div class="n">${w.icon} ${w.label}</div>
+    <div class="b ${b[k] < 0 ? 'bad' : ''}">${fmtCur(b[k], w.cur)}</div>
+    ${w.cur === 'KHR' ? `<div class="sub">≈ ${usd(toUsd(b[k], 'KHR', r))}</div>` : ''}</div>`).join('')}</div>
+  <div class="row" style="padding:0 2px 10px"><span class="k">합계 (오늘 환율)</span><span class="v"><b>${usd(total)}</b> · ${krw(fromUsd(total, 'KRW', r))}</span></div>
+  <div class="wbtns">
+    <button class="btn" data-act="in">+ 넣기</button>
+    <button class="btn ghost" data-act="xfer">⇄ 바꾸기</button>
+    <button class="btn ghost" data-act="adjust">✓ 맞추기</button>
+  </div>
+  ${!S.moves.length ? `<div class="card"><h2>시작하기</h2>
+    지금 가진 현금(달러·리엘)과 카드 잔액을 세어서 <b>✓ 맞추기</b>로 넣으세요. 그 뒤로는 지출을 저장할 때마다 지갑에서 자동으로 빠져요.
+    <div class="sub" style="margin-top:8px">· <b>넣기</b>: 환전, ATM 인출, 카드 충전<br>· <b>바꾸기</b>: 달러→리엘 환전 등 (지출 아님)<br>· <b>맞추기</b>: 실제로 센 금액과 다를 때 보정 (지출 아님)</div></div>`
+  : `<div class="dayhead"><span>지갑 기록</span><small class="sub">지출은 내역 탭에 있어요</small></div>
+    <div class="items">${moves.map(moveHtml).join('')}</div>`}`;
+}
+function moveHtml(m) {
+  const W = WALLETS;
+  let ic, name, amt;
+  if (m.type === 'in') { ic = '➕'; name = `${W[m.to].label}에 넣기`; amt = '+' + fmtCur(num(m.amount), W[m.to].cur); }
+  else if (m.type === 'xfer') { ic = '⇄'; name = `${W[m.from].label} → ${W[m.to].label}`;
+    amt = `${fmtCur(num(m.amount), W[m.from].cur)}<div class="sub">→ ${fmtCur(num(m.amount2), W[m.to].cur)}</div>`; }
+  else { ic = '✓'; name = `${W[m.to].label} ${m.memo || '보정'}`; const cur = W[m.to].cur;
+    const delta = (num(m.amount) >= 0 ? '+' : '') + fmtCur(num(m.amount), cur);
+    amt = m.set != null ? `= ${fmtCur(num(m.set), cur)}${m.memo === '시작 잔액' ? '' : `<div class="sub">${delta}</div>`}` : delta; }
+  const sub = [md(m.date), m.type !== 'adjust' ? m.memo : ''].filter(Boolean).join(' · ');
+  return `<div class="item" data-move="${esc(m.id)}"><span class="ic">${ic}</span>
+    <div class="mid"><div class="name">${esc(name)}</div><div class="m">${esc(sub)}</div></div>
+    <div class="amt"><b>${amt}</b></div></div>`;
+}
+$('tab-wallet').addEventListener('click', ev => {
+  const a = ev.target.closest('[data-act]');
+  if (a) return a.dataset.act === 'adjust' ? openAdjust() : openMove(a.dataset.act);
+  const it = ev.target.closest('[data-move]'); if (!it) return;
+  const m = S.moves.find(x => x.id === it.dataset.move); if (!m) return;
+  if (m.type === 'adjust') {
+    if (!confirm('이 보정 기록을 삭제할까요?')) return;
+    S.moves = S.moves.filter(x => x.id !== m.id); save(); renderAll(); toast('삭제했어요');
+  } else openMove(m.type, m.id);
+});
+
+// 넣기 / 바꾸기 시트
+let mType = 'in', mId = null, mFrom = 'cash', mTo = 'riel';
+const walletButtons = sel => Object.entries(WALLETS).map(([k, w]) =>
+  `<button type="button" class="${k === sel ? 'on' : ''}" data-w="${k}">${w.label}</button>`).join('');
+function openMove(type, id) {
+  const m = id ? S.moves.find(x => x.id === id) : null;
+  mType = type; mId = m ? m.id : null;
+  const isIn = type === 'in';
+  mFrom = m ? (isIn ? m.to : m.from) : 'cash';
+  mTo = m && !isIn ? m.to : 'riel';
+  $('mTitle').textContent = isIn ? '지갑에 넣기' : '바꾸기';
+  $('mDesc').textContent = isIn ? '환전, ATM 인출, 카드 충전, 한국에서 가져온 돈 등' : '달러를 리엘로 바꾸거나 현금으로 카드를 충전할 때. 지출로 계산하지 않아요.';
+  $('mFromLabel').textContent = isIn ? '넣을 곳' : '낸 곳';
+  $('mToWrap').classList.toggle('hidden', isIn);
+  $('mDate').value = m ? m.date : today();
+  $('mAmt').value = m ? m.amount : ''; $('mAmt2').value = m && !isIn ? m.amount2 : '';
+  $('mMemo').value = m ? m.memo || '' : '';
+  $('mDelete').classList.toggle('hidden', !m);
+  renderMoveChips(); openSheet('moveSheet');
+}
+function renderMoveChips() {
+  $('mFrom').innerHTML = walletButtons(mFrom); $('mTo').innerHTML = walletButtons(mTo);
+  $('mSym').textContent = CURS[WALLETS[mFrom].cur].sym; $('mSym2').textContent = CURS[WALLETS[mTo].cur].sym;
+  updateMovePreview();
+}
+function updateMovePreview() { // 받은 금액을 비워두면 오늘 환율로 계산한 값을 사용
+  const v = fromUsd(toUsd(num($('mAmt').value), WALLETS[mFrom].cur), WALLETS[mTo].cur);
+  $('mAmt2').placeholder = v ? (WALLETS[mTo].cur === 'USD' ? v.toFixed(2) : String(Math.round(v))) : '0';
+}
+$('mAmt').addEventListener('input', updateMovePreview);
+$('mFrom').addEventListener('click', ev => { const b = ev.target.closest('[data-w]'); if (b) { mFrom = b.dataset.w; renderMoveChips(); } });
+$('mTo').addEventListener('click', ev => { const b = ev.target.closest('[data-w]'); if (b) { mTo = b.dataset.w; renderMoveChips(); } });
+$('mSave').addEventListener('click', () => {
+  const amount = num($('mAmt').value);
+  if (!amount) { toast('금액을 입력하세요'); return; }
+  const base = { date: $('mDate').value || today(), memo: $('mMemo').value.trim() };
+  let rec;
+  if (mType === 'in') rec = { ...base, type: 'in', to: mFrom, amount };
+  else {
+    if (mFrom === mTo) { toast('낸 곳과 받은 곳이 같아요'); return; }
+    rec = { ...base, type: 'xfer', from: mFrom, amount, to: mTo, amount2: num($('mAmt2').value) || num($('mAmt2').placeholder) };
+  }
+  if (mId) Object.assign(S.moves.find(x => x.id === mId), rec);
+  else S.moves.push({ id: newId(), createdAt: Date.now(), ...rec });
+  save(); closeSheets(); renderAll(); toast('지갑에 반영했어요');
+});
+$('mDelete').addEventListener('click', () => {
+  if (!confirm('이 지갑 기록을 삭제할까요?')) return;
+  S.moves = S.moves.filter(x => x.id !== mId); save(); closeSheets(); renderAll(); toast('삭제했어요');
+});
+
+// 실제 잔액 맞추기: 센 금액과 앱 잔액의 차이를 보정 기록으로 남김 (지출 아님)
+function openAdjust() {
+  const b = balances();
+  $('adjInputs').innerHTML = Object.entries(WALLETS).map(([k, w]) => `
+    <label>${w.icon} ${w.label} <span class="sub">(앱 잔액 ${fmtCur(b[k], w.cur)})</span></label>
+    <div class="amount small"><input data-adj="${k}" inputmode="decimal" placeholder="실제 금액 (같으면 비워두기)" autocomplete="off"><span>${CURS[w.cur].sym}</span></div>`).join('');
+  openSheet('adjSheet');
+}
+$('adjSave').addEventListener('click', () => {
+  const b = balances(), first = !S.moves.length;
+  let n = 0;
+  document.querySelectorAll('[data-adj]').forEach(inp => {
+    if (inp.value.trim() === '') return;
+    const k = inp.dataset.adj, delta = num(inp.value) - b[k];
+    if (Math.abs(delta) < 0.005) return;
+    S.moves.push({ id: newId(), createdAt: Date.now() + n++, date: today(), type: 'adjust', to: k, amount: delta, set: num(inp.value),
+      memo: first ? '시작 잔액' : '잔액 보정' });
+  });
+  if (!n) { toast('바뀐 금액이 없어요'); return; }
+  save(); closeSheets(); renderAll(); toast('잔액을 맞췄어요');
+});
 
 // ---------- 요약 ----------
 function renderSummary() {
@@ -583,13 +814,14 @@ let curTab = 'entry';
 function showTab(name) {
   curTab = name;
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
-  ['entry', 'list', 'summary', 'settings'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== name));
+  ['entry', 'list', 'wallet', 'summary', 'settings'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== name));
   renderAll(); window.scrollTo(0, 0);
 }
 document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
 function renderAll() {
   renderHeader(); renderEntry();
   if (curTab === 'list') renderList();
+  if (curTab === 'wallet') renderWallet();
   if (curTab === 'summary') renderSummary();
   if (curTab === 'settings') renderSettings();
 }
@@ -606,18 +838,20 @@ function openEdit(id) {
   const e = S.expenses.find(x => x.id === id); if (!e) return;
   xId = id; xCat = e.cat; xPay = payKeyOf(e);
   $('xDate').value = e.date; $('xAmt').value = e.amount; $('xMemo').value = e.memo || '';
-  $('xRKrw').value = e.rKrw; $('xRKhr').value = e.rKhr;
+  $('xRKrw').value = e.rKrw; $('xRKhr').value = e.rKhr; $('xChg').value = num(e.khrChange) || '';
   $('xCats').innerHTML = catButtons(xCat); $('xCur').innerHTML = payButtons(xPay); $('xSym').textContent = CURS[PAYS[xPay].cur].sym;
+  $('xChgWrap').classList.toggle('hidden', xPay !== 'cash');
   updateEditPreview(); openSheet('editSheet');
 }
 const editForm = () => ({ date: $('xDate').value || today(), cat: xCat, cur: PAYS[xPay].cur, method: PAYS[xPay].method, amount: num($('xAmt').value),
-  memo: $('xMemo').value.trim(), rKrw: num($('xRKrw').value) || curRates().krw, rKhr: num($('xRKhr').value) || curRates().khr });
+  memo: $('xMemo').value.trim(), khrChange: xPay === 'cash' ? num($('xChg').value) : 0, rKrw: num($('xRKrw').value) || curRates().krw, rKhr: num($('xRKhr').value) || curRates().khr });
 function updateEditPreview() { const c = conv(editForm()); $('xPrev').textContent = `= ${usd(c.usd)} · ${krw(c.krw)}`; }
-['xAmt', 'xRKrw', 'xRKhr'].forEach(id => $(id).addEventListener('input', updateEditPreview));
+['xAmt', 'xRKrw', 'xRKhr', 'xChg'].forEach(id => $(id).addEventListener('input', updateEditPreview));
 $('xCats').addEventListener('click', ev => { const b = ev.target.closest('[data-cat]'); if (!b) return; xCat = b.dataset.cat; $('xCats').innerHTML = catButtons(xCat); });
 $('xCur').addEventListener('click', ev => {
   const b = ev.target.closest('[data-pay]'); if (!b) return;
-  xPay = b.dataset.pay; $('xCur').innerHTML = payButtons(xPay); $('xSym').textContent = CURS[PAYS[xPay].cur].sym; updateEditPreview();
+  xPay = b.dataset.pay; $('xCur').innerHTML = payButtons(xPay); $('xSym').textContent = CURS[PAYS[xPay].cur].sym;
+  $('xChgWrap').classList.toggle('hidden', xPay !== 'cash'); updateEditPreview();
 });
 $('xSave').addEventListener('click', () => {
   const f = editForm(); if (!f.amount) { toast('금액을 입력하세요'); return; }
@@ -663,10 +897,10 @@ function download(name, text, type) {
 function exportJson() { download(`출장경비_백업_${today()}.json`, JSON.stringify(S, null, 2), 'application/json'); }
 function exportCsv() {
   const q = v => `"${String(v).replace(/"/g, '""')}"`;
-  const rows = [['날짜', '카테고리', '결제', '금액', '통화', '메모', '환율(원/$)', '환율(리엘/$)', '환산달러', '환산원화']];
+  const rows = [['날짜', '카테고리', '결제', '금액', '통화', '메모', '거스름리엘', '환율(원/$)', '환율(리엘/$)', '환산달러', '환산원화']];
   for (const e of [...S.expenses].sort((a, b) => a.date.localeCompare(b.date) || a.createdAt - b.createdAt)) {
     const c = conv(e);
-    rows.push([e.date, catOf(e.cat).name, PAYS[payKeyOf(e)].method, num(e.amount), CURS[e.cur].name, e.memo || '', e.rKrw, e.rKhr, c.usd.toFixed(2), Math.round(c.krw)]);
+    rows.push([e.date, catOf(e.cat).name, PAYS[payKeyOf(e)].method, num(e.amount), CURS[e.cur].name, e.memo || '', num(e.khrChange), e.rKrw, e.rKhr, c.usd.toFixed(2), Math.round(c.krw)]);
   }
   download(`출장경비_${today()}.csv`, '﻿' + rows.map(r => r.map(q).join(',')).join('\r\n'), 'text/csv');
 }
@@ -677,6 +911,7 @@ function importJson(ev) {
     try {
       const d = migrate(JSON.parse(rd.result));
       if (!d) throw 0;
+      upgradeCats(d);
       if (!confirm(`기록 ${d.expenses.length}건을 불러옵니다. 지금 데이터는 덮어써져요. 계속할까요?`)) return;
       S = d; save(); renderAll(); toast('불러왔어요');
     } catch (e) { toast('백업 파일 형식이 아니에요'); }
