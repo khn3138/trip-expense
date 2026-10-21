@@ -200,9 +200,14 @@ td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
     <label class="switch" style="margin:0"><input type="checkbox" id="rAutoOn"><span></span></label>
   </div>
   <div class="sub" id="rModeDesc"></div>
+  <div class="toggle">
+    <div><b>📌 리엘 환율 고정</b><div class="sub">가게처럼 1$ = 4,000៛로 계산</div></div>
+    <label class="switch" style="margin:0"><input type="checkbox" id="rFixKhr"><span></span></label>
+  </div>
   <div class="two">
     <div><label>내 환율 원/달러 (₩)</label><input id="rKrw" inputmode="decimal" placeholder="1330"></div>
-    <div><label>내 환율 리엘/달러 (៛)</label><input id="rKhr" inputmode="decimal" placeholder="4000"></div>
+    <div id="rKhrWrap"><label>내 환율 리엘/달러 (៛)</label><input id="rKhr" inputmode="decimal" placeholder="4000"></div>
+    <div id="rFixWrap"><label>고정 리엘/달러 (៛)</label><input id="rFixRate" inputmode="decimal" placeholder="4000"></div>
   </div>
   <div class="sub" style="margin-top:6px">환율은 새로 저장하는 기록에만 적용돼요. 이미 저장한 기록의 환율은 바뀌지 않아요 (기록을 눌러서 수정 가능).</div>
   <button class="btn" id="rSave">저장</button>
@@ -245,7 +250,7 @@ td input{font-size:15px;padding:6px 8px;width:84px;text-align:right}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v0.2.0';
+const APP_VERSION = 'v0.2.1';
 const KEY = 'tripExpense.v2', OLD_KEY = 'tripExpense.v1';
 const RATE_API = 'https://open.er-api.com/v6/latest/USD';
 const CURS = { USD: { name: '달러', sym: '$' }, KHR: { name: '리엘', sym: '៛' }, KRW: { name: '원', sym: '₩' } };
@@ -296,7 +301,7 @@ const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2
 const defaults = () => ({
   version: 2,
   settings: { title: '', start: '', end: '', dailyUsd: 45, defaultPayRate: 1330, payRates: {},
-    autoRate: true, manualKrw: null, manualKhr: null, fetched: null, categories: DEFAULT_CATS.map(c => ({ ...c })) }, // catVer는 upgradeCats()에서만 설정
+    autoRate: true, fixKhr: true, fixKhrRate: 4000, manualKrw: null, manualKhr: null, fetched: null, categories: DEFAULT_CATS.map(c => ({ ...c })) }, // catVer는 upgradeCats()에서만 설정
   expenses: [],
   moves: [] // 지갑 이동: { id, createdAt, date, type: 'in'|'xfer'|'adjust', from, amount, to, amount2, memo }
 });
@@ -351,7 +356,8 @@ function curRates() {
   const s = S.settings, f = s.autoRate ? s.fetched : null;
   return {
     krw: num(f?.krw) || num(s.manualKrw) || num(s.defaultPayRate) || 1330,
-    khr: num(f?.khr) || num(s.manualKhr) || 4000
+    // 리엘 고정이 켜져 있으면 자동 조회와 상관없이 고정값 (가게 관행 1$ = 4,000៛)
+    khr: s.fixKhr ? (num(s.fixKhrRate) || 4000) : (num(f?.khr) || num(s.manualKhr) || 4000)
   };
 }
 const payRate = ym => num(S.settings.payRates[ym]) || num(S.settings.defaultPayRate) || 1330;
@@ -442,7 +448,7 @@ const leftTag = (left) => `<span class="${left >= 0 ? 'good' : 'bad'}">${left >=
 function renderHeader() {
   $('title').textContent = S.settings.title || '출장 경비';
   const r = curRates();
-  $('rateChip').innerHTML = `<b>${S.settings.autoRate ? '자동' : '고정'}</b> $1 = ₩${fmtRate(r.krw)} · ${fmtRate(Math.round(r.khr))}៛`;
+  $('rateChip').innerHTML = `<b>${S.settings.autoRate ? '자동' : '고정'}</b> $1 = ₩${fmtRate(r.krw)} · ${fmtRate(Math.round(r.khr))}៛${S.settings.fixKhr ? '📌' : ''}`;
 }
 
 // ---------- 입력 화면 ----------
@@ -484,7 +490,7 @@ function renderEntry() {
 function updateEntryPreview() {
   const a = num($('eAmt').value), r = curRates(), cur = PAYS[ePay].cur;
   const c = conv({ amount: a, cur, rKrw: r.krw, rKhr: r.khr, khrChange: ePay === 'cash' ? num($('eChg').value) : 0 });
-  $('ePrev').textContent = cur === 'USD' ? `= ${krw(c.krw)}` : cur === 'KHR' ? `= ${usd(c.usd)} · ${krw(c.krw)}` : `= ${usd(c.usd)}`;
+  $('ePrev').textContent = cur === 'USD' ? (ePay === 'cash' && num($('eChg').value) ? `= ${usd(c.usd)} 사용 · ${krw(c.krw)}` : `= ${krw(c.krw)}`) : cur === 'KHR' ? `= ${usd(c.usd)} · ${krw(c.krw)}` : `= ${usd(c.usd)}`;
 }
 $('eAmt').addEventListener('input', updateEntryPreview);
 $('eChg').addEventListener('input', updateEntryPreview);
@@ -866,23 +872,29 @@ $('xDelete').addEventListener('click', () => {
 
 // 환율
 function rateModeDesc() {
-  $('rModeDesc').textContent = $('rAutoOn').checked
+  const fix = $('rFixKhr').checked;
+  $('rModeDesc').textContent = ($('rAutoOn').checked
     ? '켜짐: 매일 시장 환율을 받아서 계산해요. 인터넷이 안 되면 아래 내 환율을 써요.'
-    : '꺼짐: 아래 내 환율(미리 환전한 환율 등)로만 계산해요.';
+    : '꺼짐: 아래 내 환율(미리 환전한 환율 등)로만 계산해요.') + (fix ? ' 리엘은 고정 환율을 써요.' : '');
+  $('rKhrWrap').classList.toggle('hidden', fix);
+  $('rFixWrap').classList.toggle('hidden', !fix);
 }
 function openRate() {
   const f = S.settings.fetched;
   $('rAuto').textContent = f ? `${md(f.date)} 조회: ₩${fmtRate(f.krw)} · ${fmtRate(f.khr)}៛` : '아직 받지 못했어요';
   $('rAutoOn').checked = !!S.settings.autoRate;
   $('rKrw').value = S.settings.manualKrw ?? ''; $('rKhr').value = S.settings.manualKhr ?? '';
+  $('rFixKhr').checked = !!S.settings.fixKhr; $('rFixRate').value = S.settings.fixKhrRate ?? 4000;
   rateModeDesc(); openSheet('rateSheet');
 }
 $('rAutoOn').addEventListener('change', rateModeDesc);
+$('rFixKhr').addEventListener('change', rateModeDesc);
 $('rateChip').addEventListener('click', openRate);
 $('rSave').addEventListener('click', () => {
   const auto = $('rAutoOn').checked, mk = num($('rKrw').value) || null, mh = num($('rKhr').value) || null;
   if (!auto && !mk) { toast('자동 조회를 끄려면 원/달러 환율을 입력하세요'); $('rKrw').focus(); return; }
-  Object.assign(S.settings, { autoRate: auto, manualKrw: mk, manualKhr: mh });
+  Object.assign(S.settings, { autoRate: auto, manualKrw: mk, manualKhr: mh,
+    fixKhr: $('rFixKhr').checked, fixKhrRate: num($('rFixRate').value) || 4000 });
   save(); closeSheets(); renderAll(); fetchRates(); toast(auto ? '자동 환율을 사용해요' : '내 환율로 고정했어요');
 });
 $('rRefresh').addEventListener('click', async () => { await fetchRates(true); openRate(); });

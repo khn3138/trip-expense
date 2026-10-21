@@ -22,6 +22,7 @@
     defaultPayRate,             // 기본 회사 지급 환율
     payRates: { 'YYYY-MM': 1330 },  // 월별 회사 지급 환율 (일비 원화 계산에만 사용)
     autoRate,                   // 환율 자동 조회 사용 여부 (기본 true)
+    fixKhr, fixKhrRate,         // 리엘 환율 고정 (기본 true, 4000) — 켜면 자동 조회와 무관하게 리엘은 고정값
     manualKrw, manualKhr,       // 내 환율 (자동 OFF일 때 사용, ON일 때는 조회 실패 시 폴백)
     fetched: { krw, khr, date, updated },  // 마지막 자동 조회 결과
     categories: [{ id, icon, name }],
