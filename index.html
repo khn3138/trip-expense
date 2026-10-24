@@ -322,7 +322,7 @@ h1{min-width:0}
 <div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION = 'v0.6.0';
+const APP_VERSION = 'v0.6.1';
 const APP_NAME = '해외지갑';
 const DB_KEY = 'tripExpense.v4', OLD_KEYS = ['tripExpense.v3', 'tripExpense.v2', 'tripExpense.v1'];
 const RATE_API = 'https://open.er-api.com/v6/latest/USD';
@@ -832,7 +832,8 @@ function renderList() {
   const byDate = {}, daily = num(S.settings.daily);
   for (const e of S.expenses) (byDate[e.date] ||= []).push(e);
   el.innerHTML = Object.keys(byDate).sort().reverse().map(d => {
-    const items = byDate[d].sort((a, b) => a.createdAt - b.createdAt), dt = dayTotal(d);
+    // 날짜도 최신이 위, 같은 날 안에서도 최신 입력이 위 (입력 화면과 같은 순서)
+    const items = byDate[d].sort((a, b) => b.createdAt - a.createdAt), dt = dayTotal(d);
     return `<div class="day"><div class="dayhead"><span>${md(d)}</span>
       <small>${withKrw(dt.b, dt.krw)} (${leftTag(daily - dt.b)})</small></div>
       <div class="items">${items.map(itemHtml).join('')}</div></div>`;
